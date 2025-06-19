@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.04080
+// @version     2025.06190
 // @author      Hyeongmin Kim
 // @description 9/13/2024, 3:13:33 PM
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%8C%EC%8B%9C%EA%B8%80%20%EC%8A%A4%ED%83%80%EC%9D%BC%20%EB%B3%80%EA%B2%BD.js
@@ -252,5 +252,34 @@ document.querySelectorAll('select#bo_sfl option').forEach(option => {
   } else if (option.value === 'wr_name,0') {
     option.textContent = '작성자(ID)';
   }
+});
+
+function replaceUnnamedSpans(container) {
+  container.querySelectorAll('a.nav-link').forEach(link => {
+    const nameSpan = link.querySelector('.nav-link-title > span:nth-child(2)');
+    const href = link.getAttribute('href');
+
+    if (nameSpan && nameSpan.textContent.trim() === "이름없음") {
+      nameSpan.textContent = href?.startsWith('/') ? href.slice(1) : href;
+    }
+  });
+}
+
+const container = document.getElementById('shortcut-menu-container');
+if (container) replaceUnnamedSpans(container);
+
+const observer = new MutationObserver(mutations => {
+  mutations.forEach(mutation => {
+    mutation.addedNodes.forEach(node => {
+      if (node.nodeType === 1 && node.matches('.nav-item.favorites-item')) {
+        replaceUnnamedSpans(node);
+      }
+    });
+  });
+});
+
+observer.observe(container, {
+  childList: true,
+  subtree: true,
 });
 
