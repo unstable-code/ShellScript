@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name        다모앙 검색 필드
+// @name        다모앙 검색 필드 (Deprecated)
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2024.11210
+// @version     2025.06190
 // @author      Hyeongmin Kim
-// @description 9/19/2024, 8:59:55 PM
+// @description 9/19/2024, 8:59:55 PM. This script will not work due to https://damoang.net/notice/18444 changes.
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%80%EC%83%89%20%ED%95%84%EB%93%9C.js
 // @downloadURL https://raw.githubusercontent.com/unstable-code/ShellScript/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%80%EC%83%89%20%ED%95%84%EB%93%9C.js
 // ==/UserScript==
