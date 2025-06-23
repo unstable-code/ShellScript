@@ -62,11 +62,11 @@ if [ $? == 0 ]; then
     flutter doctor
 fi
 
-# which flatpak &> /dev/null
-# if [ $? -eq 0 ]; then
-#     flatpak update -y
-#     flatpak uninstall --unused
-# fi
+which flatpak &> /dev/null
+if [ $? -eq 0 ]; then
+    flatpak update -y
+    flatpak uninstall --unused
+fi
 
 if [ -x /usr/bin/vmplayer ]; then
     vm_count=$(ls /lib/modules/$(uname -r)/misc 2> /dev/null | grep -c 'vm')
