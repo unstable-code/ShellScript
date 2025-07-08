@@ -104,7 +104,7 @@ if [ $? -eq 4 ]; then
 else
     echo "Unit $target_name.$1 is already exist. Using systemctl function."
     sudo systemctl edit $target_name.$1
-    exit 1
+    exit $?
 fi
 if ! [ "$n" == "Y" -o "$n" == "y" ]; then
     echo "Abort."
