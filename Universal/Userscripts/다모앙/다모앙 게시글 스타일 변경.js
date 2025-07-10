@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.06190
+// @version     2025.07100
 // @author      Hyeongmin Kim
 // @description 9/13/2024, 3:13:33 PM
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%8C%EC%8B%9C%EA%B8%80%20%EC%8A%A4%ED%83%80%EC%9D%BC%20%EB%B3%80%EA%B2%BD.js
@@ -20,7 +20,6 @@ const yourPostsElements = document.querySelectorAll('.list-group-item.da-link-bl
 const emptyCommentElements = document.querySelectorAll('.btn.btn-basic');
 const membersInfo = document.querySelectorAll('.sv_member.sideview.sideview--member.d-flex.align-items-center.gap-1');
 const contentsCount = document.querySelectorAll('.me-auto.order-0.d-none.d-sm-block');
-const hiddenContentsCount = document.querySelectorAll('.list-group-item.da-link-block.d-none');
 const memberLeaveBtn = document.querySelectorAll('.bi.bi-box-arrow-right.fs-3');
 const linkBlocks = document.querySelectorAll('.da-link-block');
 const reportedlinkBlocks = document.querySelectorAll('.da-link-block.subject-ellipsis');
@@ -201,25 +200,6 @@ contentsCount.forEach(element => {
     }
 
     boldElement.innerText = number;
-
-    if(rawData >= 1000 && hiddenContentsCount.length > 0) {
-      boldElement.innerText = number + " (-" + hiddenContentsCount.length + ")";
-      boldElement.title = boldElement.title + " | 필터링됨: " + hiddenContentsCount.length;
-    } else if (rawData < 1000 && hiddenContentsCount.length > 0) {
-      boldElement.innerText = number + " (-" + hiddenContentsCount.length + ")";
-      boldElement.title = "필터링됨: " + hiddenContentsCount.length;
-    }
-
-    if(hiddenContentsCount.length > 25) {
-      boldElement.style.color = 'red';
-    } else if (hiddenContentsCount.length > 12) {
-      boldElement.style.color = 'orange';
-    } else if (hiddenContentsCount.length > 8) {
-      boldElement.style.color = 'yellow';
-    } else {
-      boldElement.style.color = 'var(--bs-body-color)'
-    }
-  }
 });
 
 document.querySelectorAll('[id^="c_"]').forEach(element => {
@@ -252,6 +232,20 @@ document.querySelectorAll('select#bo_sfl option').forEach(option => {
   } else if (option.value === 'wr_name,0') {
     option.textContent = '작성자(ID)';
   }
+});
+
+document.querySelectorAll('.wr-date').forEach(dateBlock => {
+  const fullText = dateBlock.childNodes;
+
+  fullText.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      const parts = text.split(' ');
+      if (parts.length === 2 && /^\d{4}\.\d{2}\.\d{2}$/.test(parts[0]) && /^\d{2}:\d{2}$/.test(parts[1])) {
+        node.textContent = parts[0];
+      }
+    }
+  });
 });
 
 function replaceUnnamedSpans(container) {
