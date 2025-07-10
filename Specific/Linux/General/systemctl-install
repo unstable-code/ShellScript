@@ -7,7 +7,7 @@ launch_date=$(date '+%Y-%m-%d_%H%M%S')
 window_type=
 
 if [ "$1" == "-h" -o "$1" == "--help" ]; then
-    echo "USAGE: $0 <systemd_unit_type|option> <source|name> [destination]"
+    echo "USAGE: $0 <systemd_unit_type <source|name> [destination]|option>"
     echo ""
     echo "OPTION"
     echo -e " -h, --help:\tprint this message"
