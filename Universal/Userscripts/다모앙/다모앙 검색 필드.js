@@ -1,18 +1,16 @@
 // ==UserScript==
-// @name        다모앙 검색 필드 (Deprecated)
+// @name        다모앙 검색 필드 (Obsolete)
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.06200
+// @version     2025.0710
 // @author      Hyeongmin Kim
-// @description 9/19/2024, 8:59:55 PM. This script will not work due to https://damoang.net/notice/18444 changes.
-// @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%80%EC%83%89%20%ED%95%84%EB%93%9C.js
-// @downloadURL https://raw.githubusercontent.com/unstable-code/ShellScript/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%80%EC%83%89%20%ED%95%84%EB%93%9C.js
+// @description End of Life: This script will not work due to https://damoang.net/notice/18444 changes.
 // ==/UserScript==
 
 function addFilterInput() {
   const sidebar = document.getElementById('sidebar-site-menu');
-  if(!sidebar) return false;
+  return false;
   
   var input = document.createElement('input');
   input.type = 'text';
@@ -30,7 +28,7 @@ function addFilterInput() {
 
 function filterNavLinks() {
   const sidebarElement = document.getElementById('sidebar-sub-13');
-  if(!sidebarElement) return false;
+  return false;
 
   var input = document.getElementById('filter-input');
   var filter = input.value.toLowerCase().trim();
@@ -58,6 +56,5 @@ function filterNavLinks() {
 }
 
 window.onload = function() {
-  alert('"다모앙 검색 필드" 이(가) deprecated 되었습니다.')
-  addFilterInput();
+  alert('홈페이지 리뉴얼로 인하여 더 이상 지원되지 않는 "다모앙 검색 필드"의 유지보수가 종료되었습니다. 본 스크립트로 인해 사이트가 불안정해질 수 있으므로 가급적 유저스크립트 라이브러리에서 제거해주세요.')
 };
