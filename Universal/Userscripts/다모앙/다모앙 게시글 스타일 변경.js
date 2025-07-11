@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.07101
+// @version     2025.07110
 // @author      Hyeongmin Kim
 // @description 9/13/2024, 3:13:33 PM
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%8C%EC%8B%9C%EA%B8%80%20%EC%8A%A4%ED%83%80%EC%9D%BC%20%EB%B3%80%EA%B2%BD.js
@@ -47,6 +47,10 @@ hotElements.forEach(element => {
 });
 
 disciplines.forEach(element => {
+  if (element.textContent.trim().startsWith("주의(")) {
+    element.textContent = "경고";
+  }
+
   if (element.textContent.trim() === "경고") {
     element.style.color = "orange";
   } else if (element.textContent.trim() === "영구") {
