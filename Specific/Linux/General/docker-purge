@@ -22,14 +22,14 @@ function permission_check() {
     fi
 }
 
-if [ $# -eq 2 ]; then
-    container=$1
-    image=$2
-    volume=$3
-elif [ "$1" == "help" -o "$1" == "--help" ]; then
+if [ "$1" == "help" -o "$1" == "--help" ]; then
     echo "usage: $0 [option | container image volume]"
     echo -e "--help\tShow this help and exit."
     exit 0
+elif [ $# -ge 1 ]; then
+    container=$1
+    image=$2
+    volume=$3
 else
     permission_check
     docker ps -a
@@ -46,8 +46,8 @@ else
     docker volume ls
     echo -n "volume NAME: "
     read n
-    image="$n"
-    if [ x"$image" == x -a x"$container" == x ] && [ x"$volume" == x ]; then
+    volume="$n"
+    if [ x"$image" == x ] && [ x"$container" == x ] && [ x"$volume" == x ]; then
         echo "User Abort." >&2
         exit 1
     fi
