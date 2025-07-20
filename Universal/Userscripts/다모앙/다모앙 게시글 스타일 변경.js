@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.07200
+// @version     2025.07201
 // @author      Hyeongmin Kim
 // @description 9/13/2024, 3:13:33 PM
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%8C%EC%8B%9C%EA%B8%80%20%EC%8A%A4%ED%83%80%EC%9D%BC%20%EB%B3%80%EA%B2%BD.js
@@ -27,9 +27,6 @@ const reportedcommentBlocks = document.querySelectorAll('.na-convert');
 const newElements = document.querySelectorAll('.na-icon.na-new');
 const hotElements = document.querySelectorAll('.na-icon.na-hot');
 const disciplines = document.querySelectorAll('.wr-period.text-nowrap.order-5.order-md-2');
-const xbutton = document.querySelector('.clearfix.pt-2');
-
-if(xbutton) xbutton.remove();
 
 schWordElements.forEach(element => {
   element.style.backgroundColor = 'yellow';
@@ -62,7 +59,7 @@ linkBlocks.forEach(element => {
   if(!element.classList.contains('list-group-item') && !element.classList.contains('fw-normal')) {
     const fwNormalElements = element.querySelectorAll('.fw-normal');
     fwNormalElements.forEach(el => el.style.display = 'none');
-    
+
     element.title = element.innerText.trim();
 
     fwNormalElements.forEach(el => el.style.display = '');
@@ -225,9 +222,6 @@ document.querySelectorAll('[id^="c_"]').forEach(element => {
   }
 });
 
-const searchElement = document.getElementById('boardSearch');
-if (searchElement) searchElement.className = '';
-
 document.querySelectorAll('select#bo_sfl option').forEach(option => {
   if (option.value === 'wr_name,1') {
     option.textContent = '작성자(이름)';
@@ -248,34 +242,5 @@ document.querySelectorAll('.wr-date').forEach(dateBlock => {
       }
     }
   });
-});
-
-function replaceUnnamedSpans(container) {
-  container.querySelectorAll('a.nav-link').forEach(link => {
-    const nameSpan = link.querySelector('.nav-link-title > span:nth-child(2)');
-    const href = link.getAttribute('href');
-
-    if (nameSpan && nameSpan.textContent.trim() === "이름없음") {
-      nameSpan.textContent = href?.startsWith('/') ? href.slice(1) : href;
-    }
-  });
-}
-
-const container = document.getElementById('shortcut-menu-container');
-if (container) replaceUnnamedSpans(container);
-
-const observer = new MutationObserver(mutations => {
-  mutations.forEach(mutation => {
-    mutation.addedNodes.forEach(node => {
-      if (node.nodeType === 1 && node.matches('.nav-item.favorites-item')) {
-        replaceUnnamedSpans(node);
-      }
-    });
-  });
-});
-
-observer.observe(container, {
-  childList: true,
-  subtree: true,
 });
 
