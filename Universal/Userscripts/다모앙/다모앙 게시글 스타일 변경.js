@@ -13,9 +13,7 @@
 const schWordElements = document.querySelectorAll('.sch_word');
 const userOnlyElements = document.querySelectorAll('em.border.rounded.p-1.me-1');
 const commentParentElements = document.querySelectorAll('.d-flex.align-items-center.border-top.bg-secondary-subtle.py-1.px-3.small');
-const recommendElements = document.querySelectorAll('[class^="rcmd-box step"]');
 const uniqueElements = document.querySelectorAll('.sv_name.text-truncate');
-const visitCountElements = document.querySelectorAll('.wr-num.text-nowrap.order-4');
 const yourPostsElements = document.querySelectorAll('.list-group-item.da-link-block.writter-bg');
 const emptyCommentElements = document.querySelectorAll('.btn.btn-basic');
 const membersInfo = document.querySelectorAll('.sv_member.sideview.sideview--member.d-flex.align-items-center.gap-1');
@@ -113,35 +111,9 @@ commentParentElements.forEach(element => {
   target.textContent = target.textContent + ' 🎤';
 });
 
-recommendElements.forEach(element => {
-  const classNames = element.className.split(' ');
-  classNames.forEach(className => {
-    if(className.startsWith('step') && className.length === 5) {
-      let number = parseInt(element.textContent.trim(), 10);
-      if(!isNaN(number) && number >= 1000) {
-        let formattedNumber = (number / 1000).toFixed(1) + 'k';
-        formattedNumber = formattedNumber.replace('.0', '');
-        element.textContent = formattedNumber;
-        element.title = '받은 추천수: ' + number.toLocaleString(navigator.language);
-      }
-    }
-  })
-});
-
 uniqueElements.forEach(element => {
   if (element.textContent.trim() === 'SDK') {
     element.style.color = 'orange';
-  }
-});
-
-visitCountElements.forEach(element => {
-  let number = parseInt(element.textContent.trim(), 10);
-
-  if (!isNaN(number) && number >= 1000) {
-    let formattedNumber = (number / 1000).toFixed(1) + 'k';
-    formattedNumber = formattedNumber.replace('.0', '');
-    element.textContent = formattedNumber;
-    element.title = '조회수: ' + number.toLocaleString(navigator.language);
   }
 });
 
