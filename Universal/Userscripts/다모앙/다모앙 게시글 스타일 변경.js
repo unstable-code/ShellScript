@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.07211
+// @version     2025.07212
 // @author      Hyeongmin Kim
 // @description 9/13/2024, 3:13:33 PM
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%8C%EC%8B%9C%EA%B8%80%20%EC%8A%A4%ED%83%80%EC%9D%BC%20%EB%B3%80%EA%B2%BD.js
@@ -24,7 +24,6 @@ const reportedlinkBlocks = document.querySelectorAll('.da-link-block.subject-ell
 const reportedcommentBlocks = document.querySelectorAll('.na-convert');
 const newElements = document.querySelectorAll('.na-icon.na-new');
 const hotElements = document.querySelectorAll('.na-icon.na-hot');
-const disciplines = document.querySelectorAll('.wr-period.text-nowrap.order-5.order-md-2');
 
 schWordElements.forEach(element => {
   element.style.backgroundColor = 'yellow';
@@ -37,20 +36,6 @@ newElements.forEach(element => {
 
 hotElements.forEach(element => {
     element.style.display = 'none';
-});
-
-disciplines.forEach(element => {
-  if (element.textContent.trim().startsWith("주의")) {
-    element.textContent = "경고";
-  }
-
-  if (element.textContent.trim() === "경고") {
-    element.style.color = "orange";
-  } else if (element.textContent.trim() === "영구") {
-    element.style.color = "magenta";
-  } else {
-    element.style.color = "red";
-  }
 });
 
 linkBlocks.forEach(element => {
@@ -180,18 +165,3 @@ document.querySelectorAll('select#bo_sfl option').forEach(option => {
     option.textContent = '작성자(ID)';
   }
 });
-
-document.querySelectorAll('.wr-date').forEach(dateBlock => {
-  const fullText = dateBlock.childNodes;
-
-  fullText.forEach(node => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.trim();
-      const parts = text.split(' ');
-      if (parts.length === 2 && /^\d{4}\.\d{2}\.\d{2}$/.test(parts[0]) && /^\d{2}:\d{2}$/.test(parts[1])) {
-        node.textContent = parts[0];
-      }
-    }
-  });
-});
-
