@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://damoang.net/*
 // @grant       none
-// @version     2025.07220
+// @version     2025.07240
 // @author      Hyeongmin Kim
 // @description 9/13/2024, 3:13:33 PM
 // @updateURL   https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/%EB%8B%A4%EB%AA%A8%EC%95%99/%EB%8B%A4%EB%AA%A8%EC%95%99%20%EA%B2%8C%EC%8B%9C%EA%B8%80%20%EC%8A%A4%ED%83%80%EC%9D%BC%20%EB%B3%80%EA%B2%BD.js
@@ -16,7 +16,6 @@ const uniqueElements = document.querySelectorAll('.sv_name.text-truncate');
 const yourPostsElements = document.querySelectorAll('.list-group-item.da-link-block.writter-bg');
 const emptyCommentElements = document.querySelectorAll('.btn.btn-basic');
 const membersInfo = document.querySelectorAll('.sv_member.sideview.sideview--member.d-flex.align-items-center.gap-1');
-const contentsCount = document.querySelectorAll('.me-auto.order-0.d-none.d-sm-block');
 const memberLeaveBtn = document.querySelectorAll('.bi.bi-box-arrow-right.fs-3');
 const linkBlocks = document.querySelectorAll('.da-link-block');
 const reportedlinkBlocks = document.querySelectorAll('.da-link-block.subject-ellipsis');
@@ -127,28 +126,6 @@ membersInfo.forEach(member => {
       xpIcon.style.color = parseInt(memberLevel) < 5 ? 'red' : parseInt(memberLevel) < 10 ? 'orange' : 'green';
       xpIcon.innerHTML = memberLevel;
     }
-  }
-});
-
-contentsCount.forEach(element => {
-  const boldElement = element.querySelector('b');
-
-  if (boldElement) {
-    let number = rawData = parseFloat(boldElement.innerText.replace(/,/g, ''));
-
-    if (rawData >= 1_000_000_000) {
-      boldElement.title = number.toLocaleString(navigator.language);
-      number = (number / 1_000_000_000).toFixed(1) + 'b';
-    } else if (rawData >= 1_000_000) {
-      boldElement.title = number.toLocaleString(navigator.language);
-      number = (number / 1_000_000).toFixed(1) + 'm';
-    } else if (rawData >= 1000) {
-      boldElement.title = number.toLocaleString(navigator.language);
-      number = (number / 1000).toFixed(1) + 'k';
-    } else {
-      number = number.toString();
-    }
-    boldElement.innerText = number;
   }
 });
 
