@@ -13,18 +13,10 @@ if [ "$window_server" == "x11" ]; then
             exit 1
         fi
     else
-        echo 'error: unable to load `discord-bot.py`. API Key is empty.' >&2
+        echo 'error: unable to load `discord-bot.py`. API Key is missing.' >&2
         notify-send --action='1=OK' 'Unable to launch obs-studio.' 'The Discord API Key does not set yet. Please enter your API Key in `DISCORD_BOT_PLAYERCTL` environment value.'
         exit 1
     fi
 else
-    if [ "$1" == "--version" -o "$1" == "-v" ]; then
-        /usr/bin/obs --version
-    elif [ "$1" == "--help" -o "$1" == "-h" ]; then
-        /usr/bin/obs --help
-    else
-        echo "$window_server does not support yet." >&2
-        notify-send --action='1=OK' 'Unable to launch obs-studio.' "Aborted due to invalid Display server: $window_server. reason: Possible conflict obs-studio configuration."
-        exit 1
-    fi
+    /usr/bin/obs --disable-shutdown-check $@
 fi
