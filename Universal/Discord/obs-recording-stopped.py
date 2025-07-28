@@ -28,8 +28,7 @@ async def status(interaction: discord.Interaction):
         )
         if not result:
             result = "🎵 현재 재생 중인 트랙이 없습니다."
-        else:
-            await interaction.response.send_message(f"### 🎵 현재 재생 정보:\n```\n{result}\n```", ephemeral=True)
+        await interaction.response.send_message(f"### 🎵 현재 재생 정보:\n```\n{result}\n```", ephemeral=True)
     except subprocess.CalledProcessError:
         await interaction.response.send_message("⚠️ playerctl 실행에 실패했습니다.", ephemeral=True)
         sys.exit(1)
