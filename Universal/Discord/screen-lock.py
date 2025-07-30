@@ -21,13 +21,17 @@ tree = app_commands.CommandTree(client)
 @tree.command(name="lock", description="화면 잠금을 실행합니다.")
 async def status(interaction: discord.Interaction):
     try:
-        subprocess.Popen([f"{os.environ.get('HOME')}/.config/sway/src/backend", "lock_session"], start_new_session=True)
-        await interaction.response.send_message("🔒 화면이 잠겼습니다 (swaylock 실행됨).", ephemeral=True)
-    except subprocess.CalledProcessError:
-        await interaction.response.send_message("⚠️ swaylock 실행에 실패했습니다.", ephemeral=True)
-        sys.exit(1)
+        is_sway_running = subprocess.run(["pgrep", "-x", "swaylock"], stderr=subprocess.DEVNULL)
+        if is_sway_running.returncode == 0:
+            await interaction.response.send_message("⚠️ swaylock 실행에 실패했습니다. 이미 swaylock 이 실행 중입니다.", ephemeral=True)
+        else:
+            subprocess.Popen([f"{os.environ.get('HOME')}/.config/sway/src/backend", "lock_session"], start_new_session=True)
+            await interaction.response.send_message("🔒 화면이 잠겼습니다 (swaylock 실행됨).", ephemeral=True)
     except FileNotFoundError:
         await interaction.response.send_message("❌ 시스템에 sway 및 backend 가 설치되어 있지 않습니다.", ephemeral=True)
+        sys.exit(1)
+    except Exception as e:
+        await interaction.response.send_message(f"⚠️ swaylock 실행에 실패했습니다. 내부 오류가 발생했습니다.\n{e}", ephemeral=True)
         sys.exit(1)
 
 
