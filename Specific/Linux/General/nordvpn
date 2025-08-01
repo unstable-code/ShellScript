@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ "$(systemctl is-active nordvpn)" == "active" ]; then
+    systemctl stop nordvpn
+else
+    systemctl start nordvpn
+fi
