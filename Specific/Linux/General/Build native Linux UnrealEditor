@@ -282,7 +282,7 @@ if [ $shouldProjectClean -eq 0 ]; then
         make || gracefully_exit
     elif [ "$1" == "AlternativeSet" ]; then
         echo "Building AlternativeSet. See manual."
-        make CrashReportClient ShaderCompileWorker UnrealLightmass InterchangeWorker UnrealPak UnrealEditor || gracefully_exit
+        make CrashReportClient ShaderCompileWorker UnrealLightmass InterchangeWorker UnrealPak UnrealVersionSelector UnrealEditor || gracefully_exit
     elif [ "$1" == "DebugSet" ]; then
         echo "Building DebugSet. See manual."
         make UnrealEditor-Linux-Debug || gracefully_exit
@@ -296,7 +296,7 @@ else
         make || gracefully_exit
     elif [ "$2" == "AlternativeSet" ]; then
         echo "Building AlternativeSet. See manual."
-        make CrashReportClient ShaderCompileWorker UnrealLightmass InterchangeWorker UnrealPak UnrealEditor || gracefully_exit
+        make CrashReportClient ShaderCompileWorker UnrealLightmass InterchangeWorker UnrealPak UnrealVersionSelector UnrealEditor || gracefully_exit
     elif [ "$2" == "DebugSet" ]; then
         echo "Building DebugSet. See manual."
         make UnrealEditor-Linux-Debug || gracefully_exit
