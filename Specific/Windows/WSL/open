@@ -1,0 +1,66 @@
+#!/bin/bash
+
+failure=false
+forceExplorer=false
+
+if [ ! -x /mnt/c/Windows/explorer.exe ]; then
+    echo "open: fatal error: unable to access daemon. please mount the Windows system volume C:\\.">&2
+    exit 1
+fi
+
+if [ x"$1" == x ]; then
+    echo "Usage: open [option] <src>"
+    if [ -x /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe ]; then
+        echo -e "\t--explorer\t open file using explorer not totalcmd."
+    fi
+    echo -e " -h \t--help\t\t show help"
+    exit 1
+fi
+
+if [ "$1" == "-h" -o "$1" == "--help" ]; then
+    echo "Usage: open [option] <src>"
+    if [ -x /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe ]; then
+        echo -e "\t--explorer\t open file using explorer not totalcmd."
+    fi
+    echo -e " -h \t--help\t\t show help"
+    exit 0
+fi
+
+params=("${@}")
+
+for i in "${!params[@]}"; do
+    if [[ "${params[$i]}" == "-"* ]]; then
+        if [ "${params[$i]}" == "--explorer" ]; then
+            forceExplorer=true
+        else
+            echo "open: unknown params: ${params[$i]}.">&2
+            exit 1
+        fi
+        continue
+    fi
+
+    targetDir=$(wslpath -w "${params[$i]}" 2> /dev/null)
+    if [ $? != 0 ]; then
+        if [[ "${params[$i]}" == *"://"* ]]; then
+            explorer.exe "${params[$i]}"
+        else
+            echo "open: ${params[$i]}: No such file or directory">&2
+            failure=true
+        fi
+    else
+        if [ -x /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe -a $forceExplorer == "false" ]; then
+            powershell.exe -Command "if ( -not (Test-Path \"$targetDir\" -PathType Container) ) {exit 1}" &> /dev/null
+            if [ $? == 0 ]; then
+                /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe -t "$targetDir"
+            else
+                explorer.exe "$targetDir"
+            fi
+        else
+            explorer.exe "$targetDir"
+        fi
+    fi
+done
+
+if [ "$failure" == "true" ]; then
+    exit 1
+fi

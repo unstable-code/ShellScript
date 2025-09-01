@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ -r "/mnt/c/Program Files/Git/usr/bin/vim.exe" ]; then
+    echo "gitVI_update: The target file exists, so proceed with this operation."
+
+    touch "/mnt/c/Program Files/Git/usr/bin/vim.exe" 2> /dev/null
+    if [ $? != 0 ]; then
+        echo "gitVI_update: UAC is required for elevation of privilege to continue this action..."
+        if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
+            python3 ~/.shellscript/wsl-sudo/wsl-sudo.py mv -f "/mnt/c/Program Files/Git/usr/bin/vim.exe" "/mnt/c/Program Files/Git/usr/bin/vim-legacy.exe"
+            if [ ! -r "/mnt/c/Program Files/Git/usr/bin/vim.exe" ]; then
+                echo "gitVI_update: Successfully changed vim.exe to vim-legacy.exe."
+            else
+                echo "gitVI_update: Access denied. Please run the script again and accept the UAC prompt."
+                exit 1
+            fi
+        else
+            echo "gitVI_update: Failed to talk UAC daemon. no such file or directory. "
+            echo "gitVI_update: Permission denied. Run the script again with Windows administrator privileges. (aka. UAC)"
+            exit 1
+        fi
+    else
+        mv -f "/mnt/c/Program Files/Git/usr/bin/vim.exe" "/mnt/c/Program Files/Git/usr/bin/vim-legacy.exe"
+        if [ $? == 0 ]; then
+            echo "gitVI_update: Successfully changed vim.exe to vim-legacy.exe."
+        fi
+    fi
+else
+    if [ -r "/mnt/c/Program Files/Git/usr/bin/vim-legacy.exe" ]; then
+        echo "gitVI_update: Requirement already satisfied."
+    else
+        echo "gitVI_update: /mnt/c/Program Files/Git/usr/bin/vim.exe: no such file or directory."
+        echo "gitVI_update: Please check git installed in: C:/Program Files/Git"
+        exit 1
+    fi
+fi

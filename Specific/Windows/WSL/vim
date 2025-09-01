@@ -1,0 +1,14 @@
+#!/bin/bash
+
+inputPath="$(cygpath -u $1 2> /dev/null)"
+
+echo "$1"
+if [[ "$inputPath" == "$HOME"* ]]; then
+    checkPath="${inputPath/$HOME/}"
+    resultPath="~$checkPath"
+    wsl.exe vim "$resultPath"
+else
+    echo -en "\nUnsupported path detected. Git editor will be replace by legacy."
+    read
+    vim-legacy.exe $1
+fi

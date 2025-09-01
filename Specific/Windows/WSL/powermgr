@@ -1,0 +1,383 @@
+#!/bin/bash
+
+executePath=/mnt/c/Windows/System32
+if [ -x $executePath/shutdown.exe -o -x $executePath/rundll32.exe ]; then
+    cd $executePath 2> /dev/null
+else
+    echo "powermgr: fatal error: unable to access daemon. please mount the Windows system volume C:\\."
+    exit 1
+fi
+
+option=$1
+time=$2
+comment=$3
+chk_time=${time//[0-9]/}
+changed="false"
+
+if [ -n "$chk_time" ]; then
+    if [ $# == 2 ]; then
+        comment=$time
+        time=""
+    else
+        echo "powermgr: unable to $option system due to ambiguous parameters: $time"
+        echo "The second parameter should contain the number of seconds."
+        exit 1
+    fi
+fi
+
+function engagedTime() {
+    echo -e "System \e[1;37mwent to \e[1;31m$1\e[m at: $(date)"
+}
+
+function updateConfig() {
+    echo "Please wait until updating your config file..."
+    engageTime $1 5
+    exportCmd="export QUIET_POWERMGR_SEQUENCE=TRUE # powermgr config"
+    echo "$exportCmd" >> $2
+    if [ $? != 0 ]; then
+        echo "Failed to update config file. There are no changes."
+        exit 1
+    else
+        echo "Successfully updated config file."
+        echo "NOTE: Please reload your config file like: source $2"
+        sleep 5
+    fi
+}
+
+function executeCmd() {
+    if [ "$time" == "" ]; then
+        if [ "$1" == "r" ]; then
+            if [ "$comment" == "" ]; then
+                comment="$USER didn't provided comment. The system $option due to powermgr script."
+                echo "NOTE: Empty comment detected. The comment are replaced with the default sentences. "
+            else
+                comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
+            fi
+            checkOption $option
+            if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
+                echo -en "This system \e[1;37mwill \e[1;31m$option\e[1;37m after\e[m 15 seconds. "
+                for (( i=15; i>=0; i-- )); do
+                    if [[ $i -ge 9 ]]; then
+                        echo -en "\b\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                    elif [ $i == 1 ]; then
+                        echo -en "\b\b\b\b\b\b\b\b\b\b\b\b $i second.  "
+                    else
+                        echo -en "\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                    fi
+                    sleep 1
+                done
+                echo ""
+            fi
+            engagedTime $option
+            shutdown.exe -$1 -t 0 -c "$comment"
+        elif [ "$1" == "s" ]; then
+            if [ -x $executePath/SlideToShutDown.exe ]; then
+                SlideToShutDown.exe
+                engagedTime $option
+            else
+                if [ "$comment" == "" ]; then
+                    comment="$USER didn't provided comment. The system $option due to powermgr script."
+                    echo "NOTE: Empty comment detected. The comment are replaced with the default sentences. "
+                else
+                    comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
+                fi
+                checkOption $option
+                if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
+                    echo -en "This system \e[1;37mwill \e[1;31m$option\e[1;37m after\e[m 15 seconds. "
+                    for (( i=15; i>=0; i-- )); do
+                        if [[ $i -ge 9 ]]; then
+                            echo -en "\b\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                        elif [ $i == 1 ]; then
+                            echo -en "\b\b\b\b\b\b\b\b\b\b\b\b $i second.  "
+                        else
+                            echo -en "\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                        fi
+                        sleep 1
+                    done
+                    echo ""
+                fi
+                engagedTime $option
+                shutdown.exe -$1 -t 0 -c "$comment"
+            fi
+        fi
+    else
+        if [ $time -lt 15 ]; then
+            echo -n "Warning! The time provided is shorter than the recommended time. would you like to proceed (y/N) > "
+            read n
+            if ! [ "$n" == "y" -o "$n" == "Y" ]; then
+                echo -e "\e[1;31m$option\e[1;37m command aborted\e[m by user."
+                exit 2
+            fi
+        fi
+        if [ "$comment" == "" ]; then
+            comment="$USER didn't provided comment. The system $option due to powermgr script."
+            echo "NOTE: Empty comment detected. The comment are replaced with the default sentences. "
+        else
+            comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
+        fi
+        shutdown.exe -$1 -t $time -c "$comment"
+        if [ "$?" == "0" ]; then
+            result=$(date -d "$time second")
+            echo "The $option option will be executed at $result."
+        fi
+    fi
+}
+
+function checkOption() {
+    if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
+        echo -en "Are you sure you want to \e[1;31m$1 \e[1;37mthe system\e[m now? (Y/n/d) > "
+        read n
+        if [ "$n" == "N" -o "$n" == "n" ]; then
+            echo -e "\e[1;31m$1\e[1;37m command aborted\e[m by user."
+            if [ "$1" == "standby" -o "$1" == "hibernate" ]; then
+                restoreSleepOption
+            fi
+            exit 2
+        elif [ "$n" == "D" -o "$n" == "d" ]; then
+            if [ "$SHELL" == "/bin/bash" ]; then
+                updateConfig $1 ~/.bashrc
+            elif [ "$SHELL" == "/bin/zsh" ]; then
+                updateConfig $1 ~/.zshrc
+            else
+                echo "Unsupported shell ($SHELL). Please paste this command to your config file manually."
+                echo "$exportCmd"
+                exit 1
+            fi
+        fi
+    fi
+}
+
+function restoreSleepOption() {
+    if [ "$changed" == "true" ]; then
+        echo -n "Do you want to restore sleep settings to their previous values? (Y/n) > "
+        read n
+        if [ "$n" == "n" -o "$n" == "N" ]; then
+            echo "Please manually adjust your sleep settings. The current setting is $option mode."
+        else
+            echo "NOTE: This operation requires administrator privileges."
+            if [ "$option" == "standby" ]; then
+                if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
+                    python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h on
+                    ls /mnt/c | grep hiberfil.sys &> /dev/null
+                    if [ $? == 0 ]; then
+                        option="hibernate"
+                        echo "Successfully restored to previous values."
+                    else
+                        echo "Failed to change the value. You don't have permission."
+                    fi
+                else
+                    echo "Failed to talk UAC daemon. no such file or directory."
+                fi
+            elif [ "$option" == "hibernate" ]; then
+                if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
+                    python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h off
+                    ls /mnt/c | grep hiberfil.sys &> /dev/null
+                    if [ $? != 0 ]; then
+                        option="standby"
+                        echo "Successfully restored to previous values."
+                    else
+                        echo "Failed to change the value. You don't have permission."
+                    fi
+                else
+                    echo "Failed to talk UAC daemon. no such file or directory."
+                fi
+            fi
+        fi
+    fi
+}
+
+if [ "$option" == "halt" ]; then
+    executeCmd s
+elif [ "$option" == "reboot" ]; then
+    executeCmd r
+elif [ "$option" == "abort" ]; then
+    shutdown.exe -a
+    if [ "$?" == "0" ]; then
+        echo "The schedule has been canceled. Any previously scheduled commands will not be executed."
+    fi
+
+elif [ "$option" == "sleep" ]; then
+    if [ "$time" == "" ]; then
+        while true; do
+            ls /mnt/c | grep hiberfil.sys &> /dev/null
+            if [ $? == 0 ]; then
+                echo "NOTE: Methods marked with '*' require administrator privileges."
+                echo -n "Please choose a sleeping method (H: hibernate, s: standby*, c: cancel) > "
+            else
+                echo "NOTE: Methods marked with '*' require administrator privileges."
+                echo -n "Please choose a sleeping method (h: hibernate*, S: standby, c: cancel) > "
+            fi
+            read n
+            if [ "$n" == "c" -o "$n" == "C" ]; then
+                echo -e "\e[1;31m$option\e[1;37m command aborted\e[m by user."
+                exit 2
+            elif [ "$n" == "h" -o "$n" == "H" ]; then
+                ls /mnt/c | grep hiberfil.sys &> /dev/null
+                if [ $? != 0 ]; then
+                    echo "The current system sleep option is set to standby. You need administrator privileges to change to hibernate mode."
+                    echo -n "Are you sure you want to change this option? (y/N) > "
+                    read n
+                    if [ "$n" == "y" -o "$n" == "Y" ]; then
+                        if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
+                            python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h on
+                            ls /mnt/c | grep hiberfil.sys &> /dev/null
+                            if [ $? == 0 ]; then
+                                option="hibernate"
+                                changed="true"
+                                echo "NOTE: Do not unplug the power until the hibernation is completed."
+                            else
+                                echo "Failed to change the value. You don't have permission."
+                                option="standby"
+                                echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
+                            fi
+                        else
+                            echo "Failed to talk UAC daemon. no such file or directory."
+                            option="standby"
+                            echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
+                        fi
+                    else
+                        option="standby"
+                        echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
+                    fi
+                else
+                    option="hibernate"
+                    echo "NOTE: Do not unplug the power until the hibernation is completed."
+                fi
+                break
+            elif [ "$n" == "s" -o "$n" == "S" ]; then
+                ls /mnt/c | grep hiberfil.sys &> /dev/null
+                if [ $? == 0 ]; then
+                    echo "The current system sleep option is set to hibernate. You need administrator privileges to change to standby mode."
+                    echo -n "Are you sure you want to change this option? (y/N) > "
+                    read n
+                    if [ "$n" == "y" -o "$n" == "Y" ]; then
+                        if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
+                            python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h off
+                            ls /mnt/c | grep hiberfil.sys &> /dev/null
+                            if [ $? != 0 ]; then
+                                option="standby"
+                                changed="true"
+                                echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
+                            else
+                                echo "Failed to change the value. You don't have permission."
+                                option="hibernate"
+                                echo "NOTE: Do not unplug the power until the hibernation is completed."
+                            fi
+                        else
+                            echo "Failed to talk UAC daemon. no such file or directory."
+                            option="hibernate"
+                            echo "NOTE: Do not unplug the power until the hibernation is completed."
+                        fi
+                    else
+                        option="hibernate"
+                        echo "NOTE: Do not unplug the power until the hibernation is completed."
+                    fi
+                else
+                    option="standby"
+                    echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
+                fi
+                break
+            else
+                if [ "$n" != "" ]; then
+                    echo "Unknown command $n, Skipping."
+                else
+                    ls /mnt/c | grep hiberfil.sys &> /dev/null
+                    if [ $? == 0 ]; then
+                        option="hibernate"
+                        echo "NOTE: Do not unplug the power until the hibernation is completed."
+                    else
+                        option="standby"
+                        echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
+                    fi
+                    break
+                fi
+            fi
+        done
+
+        checkOption $option
+        if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
+            echo -en "This system \e[1;37mwill \e[1;31m$option\e[1;37m after\e[m 15 seconds. "
+            for (( i=15; i>=0; i-- )); do
+                if [[ $i -ge 9 ]]; then
+                    echo -en "\b\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                elif [ $i == 1 ]; then
+                    echo -en "\b\b\b\b\b\b\b\b\b\b\b\b $i second.  "
+                else
+                    echo -en "\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                fi
+                sleep 1
+            done
+            echo ""
+        fi
+        engagedTime $option
+        startTime=$(date +%s)
+        rundll32.exe powrprof.dll SetSuspendState
+        endTime=$(date +%s)
+        diffTime=$(($endTime-$startTime))
+        if [ $diffTime -lt 300 ]; then
+            resultMin=$((diffTime/60))
+            resultSec=$((diffTime%60))
+            echo -e "The \e[1;31m$option\e[1;37m was aborted\e[m. 'Cause the system came out of $option state in only $resultMin min $resultSec sec. To resolve this issue, the system should $option for at least 5 minutes."
+        fi
+
+        restoreSleepOption
+    else
+		result=$(date -d "$time second")
+        echo "$option command doesn't not support time. Please enter this command after $result."
+        exit 1
+    fi
+elif [ "$option" == "lock" ]; then
+    if [ "$time" == "" ]; then
+        checkOption $option
+        engagedTime $option
+        rundll32.exe user32.dll LockWorkStation
+    else
+		result=$(date -d "$time second")
+        echo "$option command doesn't not support time. Please enter this command after $result."
+        exit 1
+    fi
+
+elif [ "$option" == "logout" ]; then
+    if [ "$time" == "" ]; then
+        checkOption $option
+        if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
+            echo -en "This system \e[1;37mwill \e[1;31m$1\e[1;37m after\e[m 15 seconds. "
+            for (( i=15; i>=0; i-- )); do
+                if [[ $i -ge 9 ]]; then
+                    echo -en "\b\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                elif [ $i == 1 ]; then
+                    echo -en "\b\b\b\b\b\b\b\b\b\b\b\b $i second.  "
+                else
+                    echo -en "\b\b\b\b\b\b\b\b\b\b\b$i seconds. "
+                fi
+                sleep 1
+            done
+            echo ""
+        fi
+        engagedTime $option
+        shutdown.exe -l
+    else
+		result=$(date -d "$time second")
+        echo "$option command doesn't not support time. Please enter this command after $result."
+        exit 1
+    fi
+
+elif [ "$option" == "help" -o x"$option" == x ]; then
+    echo "usage: powermgr <option> [time] [comment]"
+    echo "    halt: Shut down this computer"
+    echo "  reboot: Restart this computer"
+    echo "   abort: Cancel a shutdown or restart schedule"
+    echo "   sleep: Put this computer to sleep"
+    echo "    lock: Lock $USER account"
+    echo "  logout: Log off $USER account"
+    echo -e "    help: Show this help\n"
+    echo "NOTE: Some parameters or options have the following restrictions"
+    echo "- The time and comment parameter only applies halt and reboot options."
+    echo "- The abort option takes effect only when the shutdown or restart is scheduled."
+else
+    echo "powermgr: command not found: $option"
+    echo "   usage: $0 <option> [time] [comment]"
+    echo "Use the \"help\" option to display available options"
+    exit 1
+fi
+
