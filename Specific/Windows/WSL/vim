@@ -8,7 +8,7 @@ if [[ "$inputPath" == "$HOME"* ]]; then
     resultPath="~$checkPath"
     wsl.exe vim "$resultPath"
 else
-    echo -en "\nUnsupported path detected. Git editor will be replace by legacy."
+    echo -en "\nUnsupported path detected. Git editor will be replace by legacy." >&2
     read
     vim-legacy.exe $1
 fi
