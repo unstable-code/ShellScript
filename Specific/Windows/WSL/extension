@@ -47,7 +47,7 @@ which wsl.exe &>/dev/null
 if [ $? == 0 ]; then
     wsl.exe --status
     wsl.exe --version
-    echo 'Please enter `wsl.exe --update --web-download` command if you wanna check WSL updates.'
+    echo 'Please enter `wsl.exe --update` command if you wanna check WSL updates.'
 fi
 
 which winget.exe &>/dev/null
