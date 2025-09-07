@@ -1,9 +1,9 @@
 #NoTrayIcon
 
-#e::
++#e::
 Run "C:\Program Files\totalcmd\TOTALCMD64.EXE",,,
 Return
 
-+#e::
+#e::
 Run "Explorer.EXE"
 Return
