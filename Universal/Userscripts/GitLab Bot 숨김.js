@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09237
+// @version      2025.09238
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -81,7 +81,10 @@
             if (isNaN(lastDate)) return; // 파싱 실패 시 무시
 
             const diffDays = (now - lastDate) / (1000 * 60 * 60 * 24);
-            if (diffDays <= 7) {
+            if (diffDays <= 3) {
+                lastSpan.style.color = 'lime';
+                lastSpan.closest('td').style.color = 'lime';
+            } else if (diffDays <= 7) {
                 lastSpan.style.color = 'green';
                 lastSpan.closest('td').style.color = 'green';
             } else if (diffDays >= 30) {
