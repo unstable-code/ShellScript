@@ -84,6 +84,9 @@
             if (diffDays <= 7) {
                 lastSpan.style.color = 'green';
                 lastSpan.closest('td').style.color = 'green';
+            } else if (diffDays >= 30) {
+                lastSpan.style.color = 'yellow';
+                lastSpan.closest('td').style.color = 'yellow';
             }
         });
     }
