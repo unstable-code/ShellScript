@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hide Bot Rows
 // @namespace    http://tampermonkey.net/
-// @version      2025.09232
+// @version      2025.09233
 // @description  tr 안에 Bot 배지가 있으면 해당 유저 행을 숨김
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -50,7 +50,10 @@
     highlightZeros();
 
     // 동적 로딩 대응
-    const observer = new MutationObserver(hideBotRows);
+    const observer = new MutationObserver(() => {
+        hideBotRows();
+        highlightZeros();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
 
