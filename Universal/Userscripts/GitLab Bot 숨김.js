@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hide Bot Rows
 // @namespace    http://tampermonkey.net/
-// @version      2025.09233
+// @version      2025.09234
 // @description  tr 안에 Bot 배지가 있으면 해당 유저 행을 숨김
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -44,15 +44,28 @@
         });
     }
 
+    function highlightNever() {
+        // 모든 Last activity td 선택
+        document.querySelectorAll('td[data-label="Last activity"]').forEach(td => {
+            const span = td.querySelector('span');
+            if (span && span.textContent.trim() === 'Never') {
+                // td와 span 모두 주황색 적용
+                td.style.color = 'orange';
+                span.style.color = 'orange';
+            }
+        });
+    }
 
     // 처음 로드 시 실행
     hideBotRows();
     highlightZeros();
+    highlightNever();
 
     // 동적 로딩 대응
     const observer = new MutationObserver(() => {
         hideBotRows();
         highlightZeros();
+        highlightNever();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
