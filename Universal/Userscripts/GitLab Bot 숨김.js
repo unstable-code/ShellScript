@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09240
+// @version      2025.09241
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -62,8 +62,8 @@
             const last = tr.querySelector('td[data-label="Last activity"] span');
 
             if (created && last && created.textContent.trim() === last.textContent.trim()) {
-                last.style.color = 'yellow';
-                last.closest('td').style.color = 'yellow';
+                last.style.color = 'purple';
+                last.closest('td').style.color = 'purple';
             }
         });
     }
@@ -104,16 +104,16 @@
     hideBotRows();
     highlightZeros();
     highlightNever();
-    highlightRows();
     highlightRecentActivity();
+    highlightRows();
 
     // 동적 로딩 대응
     const observer = new MutationObserver(() => {
         hideBotRows();
         highlightZeros();
         highlightNever();
-        highlightRows();
         highlightRecentActivity();
+        highlightRows();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
