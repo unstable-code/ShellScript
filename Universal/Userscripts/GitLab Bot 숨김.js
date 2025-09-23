@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09238
+// @version      2025.09239
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -87,9 +87,15 @@
             } else if (diffDays <= 7) {
                 lastSpan.style.color = 'green';
                 lastSpan.closest('td').style.color = 'green';
-            } else if (diffDays >= 30) {
+            } else if (diffDays <= 30) {
+                lastSpan.style.color = 'darkgreen';
+                lastSpan.closest('td').style.color = 'darkgreen';
+            } else if (diffDays <= 90) {
                 lastSpan.style.color = 'yellow';
                 lastSpan.closest('td').style.color = 'yellow';
+            } else {
+                lastSpan.style.color = 'orange';
+                lastSpan.closest('td').style.color = 'orange';
             }
         });
     }
