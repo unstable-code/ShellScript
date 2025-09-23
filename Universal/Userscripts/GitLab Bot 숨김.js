@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09239
+// @version      2025.09240
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -50,8 +50,8 @@
             const span = td.querySelector('span');
             if (span && span.textContent.trim() === 'Never') {
                 // td와 span 모두 주황색 적용
-                td.style.color = 'orange';
-                span.style.color = 'orange';
+                td.style.color = 'red';
+                span.style.color = 'red';
             }
         });
     }
