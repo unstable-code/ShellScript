@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Hide Bot Rows
+// @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09234
-// @description  tr 안에 Bot 배지가 있으면 해당 유저 행을 숨김
+// @version      2025.09235
+// @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/GitLab%20Bot%20%EC%88%A8%EA%B9%80.js
@@ -56,16 +56,30 @@
         });
     }
 
+    function highlightRows() {
+        document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
+            const created = tr.querySelector('td[data-label="Created on"] span');
+            const last = tr.querySelector('td[data-label="Last activity"] span');
+
+            if (created && last && created.textContent.trim() === last.textContent.trim()) {
+                last.style.color = 'yellow';
+                last.closest('td').style.color = 'yellow';
+            }
+        });
+    }
+
     // 처음 로드 시 실행
     hideBotRows();
     highlightZeros();
     highlightNever();
+    highlightRows();
 
     // 동적 로딩 대응
     const observer = new MutationObserver(() => {
         hideBotRows();
         highlightZeros();
         highlightNever();
+        highlightRows();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
