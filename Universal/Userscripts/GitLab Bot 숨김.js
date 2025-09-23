@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09235
+// @version      2025.09236
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -68,11 +68,32 @@
         });
     }
 
+    function highlightRecentActivity() {
+        const now = new Date();
+        document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
+            const lastSpan = tr.querySelector('td[data-label="Last activity"] span');
+            if (!lastSpan) return;
+
+            const text = lastSpan.textContent.trim();
+            if (text === 'Never') return; // Never는 다른 스크립트에서 처리
+
+            const lastDate = new Date(text);
+            if (isNaN(lastDate)) return; // 파싱 실패 시 무시
+
+            const diffDays = (now - lastDate) / (1000 * 60 * 60 * 24);
+            if (diffDays <= 7) {
+                lastSpan.style.color = 'green';
+                lastSpan.closest('td').style.color = 'green';
+            }
+        });
+    }
+
     // 처음 로드 시 실행
     hideBotRows();
     highlightZeros();
     highlightNever();
     highlightRows();
+    highlightRecentActivity();
 
     // 동적 로딩 대응
     const observer = new MutationObserver(() => {
@@ -80,6 +101,7 @@
         highlightZeros();
         highlightNever();
         highlightRows();
+        highlightRecentActivity();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
