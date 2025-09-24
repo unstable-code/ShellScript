@@ -1,34 +1,26 @@
 #!/bin/bash
 
-target_app=$(basename $0 | sed 's/-.*//')
 launched=0
 spoofdpi_pid=0
 
 ps -ef | grep -v grep | grep spoofdpi &> /dev/null
 if [ $? -ne 0 ]; then
-    logger --tag $target_app --priority user.info 'spoofdpi is not running yet. starting spoofdpi... '
-    logger --tag $target_app --priority user.debug 'spoofdpi --port=12345 &'
     spoofdpi --port=12345 &
     spoofdpi_pid=$!
-    logger --tag $target_app --priority user.info "successfully launched spoofdpi($spoofdpi_pid) "
     sleep 5
     launched=1
 fi
 
-logger --tag $target_app --priority user.info "launching $target_app with incognito..."
-$target_app --incognito --proxy-server=127.0.0.1:12345 https://google.com &
+flatpak run com.google.Chrome --incognito --proxy-server=127.0.0.1:12345 https://google.com &
 target_app_pid=$!
-logger --tag $target_app --priority user.debug "$target_app --incognito --proxy-server=127.0.0.1:12345 https://google.com"
 
 if [ $launched -eq 1 ]; then
-    logger --tag $target_app --priority user.debug "waiting $target_app died due to exiting spoofdpi($spoofdpi_pid)"
     while :; do
         ps -ef | grep -v grep | grep -v $(basename $0) | grep $target_app_pid &> /dev/null
         if [ $? -ne 0 ]; then
-	    kill $spoofdpi_pid
-	    logger --tag $target_app --priority user.debug "killed spoofdpi($spoofdpi_pid) due to $target_app processes died."
-	    break
+            kill $spoofdpi_pid
+            break
         fi
-	sleep 1
+        sleep 1
     done
 fi
