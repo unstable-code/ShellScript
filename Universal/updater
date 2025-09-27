@@ -11,9 +11,9 @@ function gitUpdate() {
         repoName+=("Release/brewall" "Release/ArtDisplay")
     fi
 
-    if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
-        repoName+=("Release/GameAddons")
-    fi
+    # if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
+    #     repoName+=("...")
+    # fi
 
     for target in "${repoName[@]}"; do
         if [ -d ~/Documents/$target ]; then
