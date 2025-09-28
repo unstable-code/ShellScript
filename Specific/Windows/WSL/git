@@ -1,25 +1,47 @@
 #!/bin/bash
 
+target=$(basename $0)
 currentPath="$(pwd)"
 
 echo "$(readlink -f "$currentPath")" | grep "/mnt/" &> /dev/null
-if [ $? != 0 ]; then
-    if [ -x /usr/bin/git ]; then
-        /usr/bin/git --version | grep "windows" &> /dev/null
-        if [ $? == 0 ]; then
-            exit 1
-        else
-            /usr/bin/git $@
+if [ $? -ne 0 ]; then
+    if [ "$target" == "git" ]; then
+        if [ -x /usr/bin/git ]; then
+            /usr/bin/git --version | grep "windows" &> /dev/null
+            if [ $? -eq 0 ]; then
+                exit 1
+            else
+                /usr/bin/git $@
+            fi
+        fi
+    elif [ "$target" == "gpg" ]; then
+        if [ -x /usr/bin/gpg ]; then
+            /usr/bin/gpg --version | grep Home | awk -F ': ' '{ print $2 }' | grep -vE '^/c/Users/'
+            if [ $? -eq 0 ]; then
+                /usr/bin/gpg $@
+            else
+                exit 1
+            fi
         fi
     fi
-    
 else
-    if [ -x /usr/bin/git_win ]; then
-        /usr/bin/git_win --version | grep "windows" &> /dev/null
-        if [ $? == 0 ]; then
-            /usr/bin/git_win $@
-        else
-            exit 1
+    if [ "$target" == "git" ]; then
+        if [ -x /usr/bin/git_win ]; then
+            /usr/bin/git_win --version | grep "windows" &> /dev/null
+            if [ $? -eq 0 ]; then
+                /usr/bin/git_win $@
+            else
+                exit 1
+            fi
+        fi
+    elif [ "$target" == "gpg" ]; then
+        if [ -x /usr/bin/gpg_win ]; then
+            /usr/bin/gpg_win --version | grep Home | awk -F ': ' '{ print $2 }' | grep -E '^/c/Users/'
+            if [ $? -eq 0 ]; then
+                /usr/bin/gpg_win $@
+            else
+                exit 1
+            fi
         fi
     fi
 fi
