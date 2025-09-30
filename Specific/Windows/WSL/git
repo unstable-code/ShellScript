@@ -40,13 +40,8 @@ else
         if [ -x /usr/bin/gpg_win ]; then
             /usr/bin/gpg_win --version | grep Home | awk -F ': ' '{ print $2 }' | grep -E '^/c/Users/'
             if [ $? -eq 0 ]; then
+                /mnt/c/Program\ Files/Git/git-bash.exe -c "gpg $@"
                 /usr/bin/gpg_win $@
-                if [ $? == 1 ]; then
-                    echo 'Unexpected error occurred.' >&2
-                    echo 'Try again `gpg $@` commands with `git-bash.exe` to avoid keybox IO error.' >&2
-                    /mnt/c/Program\ Files/Git/git-bash.exe -c "echo 'Initializing...'"
-                    /usr/bin/gpg_win $@
-                fi
             else
                 exit 1
             fi
