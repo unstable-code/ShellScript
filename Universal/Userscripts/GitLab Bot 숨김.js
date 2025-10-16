@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.09241
+// @version      2025.10160
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -100,12 +100,31 @@
         });
     }
 
+    function insertCurrentDate() {
+        const th = document.querySelector('th[aria-label="Settings"] div');
+        if (!th) return;
+
+        const now = new Date();
+        const formatted = now.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        if (th.textContent.trim() === formatted) return;
+
+        th.textContent = formatted;
+        th.style.fontWeight = 'bold';
+        th.style.textAlign = 'center';
+    }
+
     // 처음 로드 시 실행
     hideBotRows();
     highlightZeros();
     highlightNever();
     highlightRecentActivity();
     highlightRows();
+    insertCurrentDate();
 
     // 동적 로딩 대응
     const observer = new MutationObserver(() => {
@@ -114,6 +133,7 @@
         highlightNever();
         highlightRecentActivity();
         highlightRows();
+        insertCurrentDate();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
