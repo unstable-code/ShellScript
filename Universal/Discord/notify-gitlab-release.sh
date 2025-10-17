@@ -5,11 +5,6 @@ REPO_TAG_FEED="https://gitlab.com/gitlab-org/gitlab-foss/-/tags?format=atom"
 CACHE_FILE="$HOME/.last_gitlab_tags"
 DISCORD_URL="$DISCORD_URL"
 
-if [ -z $DISCORD_URL ]; then
-    echo 'Please set DISCORD_URL first, to use this script.' >&2
-    exit 1
-fi
-
 # 최근 1개 태그 추출
 LATEST_TAGS=$(curl -s "$REPO_TAG_FEED" \
   | grep "<title>" \
@@ -18,6 +13,11 @@ LATEST_TAGS=$(curl -s "$REPO_TAG_FEED" \
   | head -n 1)
 
 echo -e "=== (DEBUG) RESULT TAGS ===\n$LATEST_TAGS"
+
+if [ -z $DISCORD_URL ]; then
+    echo 'Please set DISCORD_URL to use this script.' >&2
+    exit 1
+fi
 
 # 캐시 파일 없으면 초기화
 [ ! -f "$CACHE_FILE" ] && touch "$CACHE_FILE"
