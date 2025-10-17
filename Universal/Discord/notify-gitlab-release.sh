@@ -26,7 +26,7 @@ fi
 if ! grep -qx "$LATEST_TAG" "$CACHE_FILE"; then
     echo "🆕 New stable tag: $LATEST_TAG"
 
-    GITLAB_URL="https://gitlab.com/gitlab-org/gitlab-foss/-/releases/$LATEST_TAG"
+    GITLAB_URL="https://gitlab.com/gitlab-org/gitlab-foss/-/releases/$(echo $LATEST_TAG | sed 's/[1-9]$/0/')"
     DOCKER_URL="https://hub.docker.com/layers/gitlab/gitlab-ce/$(echo $LATEST_TAG | sed 's/v//')-ce.0"
 
     # Discord Embed JSON 생성
