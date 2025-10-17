@@ -27,7 +27,7 @@ if ! grep -qx "$LATEST_TAG" "$CACHE_FILE"; then
     echo "🆕 New stable tag: $LATEST_TAG"
 
     GITLAB_URL="https://gitlab.com/gitlab-org/gitlab-foss/-/releases/$LATEST_TAG"
-    DOCKER_URL="https://hub.docker.com/layers/gitlab/gitlab-ce/${LATEST_TAG}"
+    DOCKER_URL="https://hub.docker.com/layers/gitlab/gitlab-ce/$(echo $LATEST_TAG | sed 's/v//')-ce.0"
 
     # Discord Embed JSON 생성
     JSON_PAYLOAD=$(jq -n \
@@ -49,6 +49,7 @@ if ! grep -qx "$LATEST_TAG" "$CACHE_FILE"; then
     )
 
     # 전송
+    echo "$JSON_PAYLOAD"
     curl -s -H "Content-Type: application/json" \
          -X POST \
          -d "$JSON_PAYLOAD" \
