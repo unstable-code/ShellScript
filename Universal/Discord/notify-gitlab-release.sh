@@ -6,14 +6,14 @@ CACHE_FILE="$HOME/.last_gitlab_tags"
 DISCORD_URL="$DISCORD_URL"
 
 # 최근 1개 태그 추출
-LATEST_TAGS=$(curl -s "$REPO_TAG_FEED" \
-  | grep "<title>" \
-  | sed 's/.*<title>\(.*\)<\/title>.*/\1/' \
-  | grep -viE '(rc|tags|from|gitlabhq)' )
+LATEST_TAG=$(curl -s "$REPO_TAG_FEED" \
+    | grep "<title>" \
+    | sed 's/.*<title>\(.*\)<\/title>.*/\1/' \
+    | grep -viE '(rc|tags|from|gitlabhq)' )
 
-LATEST_TAGS=$(echo "$LATEST_TAGS" | sort -Vr | awk -v last="$last_tag" '$0 != last {print; exit}')
+LATEST_TAG=$(echo "$LATEST_TAG" | sort -Vr | awk -v last="$last_tag" '$0 != last {print; exit}')
 
-echo -e "=== (DEBUG) RESULT TAGS ===\n$LATEST_TAGS"
+echo -e "=== (DEBUG) RESULT TAGS ===\n$LATEST_TAG"
 
 if [ -z $DISCORD_URL ]; then
     echo 'Please set DISCORD_URL to use this script.' >&2
@@ -23,30 +23,29 @@ fi
 # 캐시 파일 없으면 초기화
 [ ! -f "$CACHE_FILE" ] && touch "$CACHE_FILE"
 
-for TAG in $LATEST_TAGS; do
-  if ! grep -qx "$TAG" "$CACHE_FILE"; then
-    echo "🆕 New stable tag: $TAG"
+if ! grep -qx "$LATEST_TAG" "$CACHE_FILE"; then
+    echo "🆕 New stable tag: $LATEST_TAG"
 
-    GITLAB_URL="https://gitlab.com/gitlab-org/gitlab-foss/-/releases/$TAG"
-    DOCKER_URL="https://hub.docker.com/layers/gitlab/gitlab-ce/${TAG}"
+    GITLAB_URL="https://gitlab.com/gitlab-org/gitlab-foss/-/releases/$LATEST_TAG"
+    DOCKER_URL="https://hub.docker.com/layers/gitlab/gitlab-ce/${LATEST_TAG}"
 
     # Discord Embed JSON 생성
     JSON_PAYLOAD=$(jq -n \
-      --arg title "🟢 New GitLab CE Release: $TAG" \
-      --arg gitlab "$GITLAB_URL" \
-      --arg docker "$DOCKER_URL" \
-      '{
-        "embeds": [{
-          "title": $title,
-          "color": 3066993,
-          "fields": [
-            {"name": "🔗 GitLab Tag", "value": $gitlab, "inline": false},
-            {"name": "🐳 Docker Image", "value": $docker, "inline": false}
-          ],
-          "footer": {"text": "GitLab CE Tag Monitor"},
-          "timestamp": (now | todate)
-        }]
-      }'
+        --arg title "🟢 New GitLab CE Release: $LATEST_TAG" \
+        --arg gitlab "$GITLAB_URL" \
+        --arg docker "$DOCKER_URL" \
+        '{
+          "embeds": [{
+            "title": $title,
+            "color": 3066993,
+            "fields": [
+              {"name": "🔗 GitLab Tag", "value": $gitlab, "inline": false},
+              {"name": "🐳 Docker Image", "value": $docker, "inline": false}
+            ],
+            "footer": {"text": "GitLab CE Tag Monitor"},
+            "timestamp": (now | todate)
+          }]
+        }'
     )
 
     # 전송
@@ -55,7 +54,6 @@ for TAG in $LATEST_TAGS; do
          -d "$JSON_PAYLOAD" \
          "$DISCORD_URL" >/dev/null
 
-    echo "$TAG" >> "$CACHE_FILE"
-  fi
-done
+    echo "$LATEST_TAG" > "$CACHE_FILE"
+fi
 
