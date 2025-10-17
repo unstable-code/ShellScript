@@ -6,10 +6,13 @@ auto_restart_enabled=no
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo "usage: $0 [option|FILE]"
+    echo -e '\n\e[0;1mOPTIONS\e[m'
     echo -e "--help\t\tshow this help."
     echo -e "--extract\tdownload gitlab-ce released tags file in Docker Hub. (aka. export)"
     echo -e "\t\ttags file will be saved to /tmp/gitlab-released-tags.txt"
-    echo -en "FILE\t\tusing provided file with already ASC sorted contents AND " && echo '\n delimter'
+    echo -en "FILE\t\tusing provided file with already ASC sorted contents AND " && echo '`\n` delimter'
+    echo -e '\n\e[0;1mENV VALUES\e[m'
+    echo -e "TARGET_URL\tA simple connection test for your GitLab server."
     exit 0
 elif [ -f "$1" ]; then
     echo "using $1 file to take effect reducing time about sorting version tags"
@@ -223,6 +226,11 @@ mapfile -t UPGRADE_POINTS_ARRAY < <(
 
 if [ ${#UPGRADE_POINTS_ARRAY[@]} -eq 0 ]; then
     echo "requirements already satisfied: v$CURRENT_VERSION"
+
+    curl -sf -o /dev/null $TARGET_URL/explore/projects &> /dev/null
+    if [ $? -ne 0 ]; then
+        echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
+    fi
     exit 0
 fi
 
@@ -315,5 +323,9 @@ fi
 
 echo "Successfully updated Gitlab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
-echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
+
+curl -sf -o /dev/null $TARGET_URL/explore/projects &> /dev/null
+if [ $? -ne 0 ]; then
+    echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
+fi
 exit 0
