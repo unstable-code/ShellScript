@@ -10,7 +10,7 @@ if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo -e "--help\t\tshow this help."
     echo -e "--extract\tdownload gitlab-ce released tags file in Docker Hub. (aka. export)"
     echo -e "\t\ttags file will be saved to /tmp/gitlab-released-tags.txt"
-    echo -en "FILE\t\tusing provided file with already ASC sorted contents AND " && echo '`\n` delimter'
+    echo -en "FILE\t\tusing provided file with already ASC sorted contents"
     echo -e '\n\e[0;1mENV VALUES\e[m'
     echo -e "TARGET_URL\tA simple connection test for your GitLab server."
     exit 0
@@ -156,6 +156,7 @@ if [ $use_local_versions -ne 1 ]; then
 
   ALL_TAGS=$FILTERED_TAGS
 else
+  cat "$1" | tr ' ' '\n' | tee "$1" > /dev/null
   RAW_TAGS_N=$(cat "$1" | grep -viE '(rc|nightly|latest)')
   count=1
   mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
