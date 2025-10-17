@@ -2,6 +2,7 @@
 
 use_local_versions=0
 extract_versions_only=0
+auto_restart_enabled=no
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo "usage: $0 [option|FILE]"
@@ -228,10 +229,11 @@ fi
 echo -e "\nWould you like to upgrade GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}?"
 echo "This action can not be undo. PLEASE BACKUP gitlab drive BEFORE STARTING UPDATE..."
 echo "You should update pointing release either. ROUTING COUNT: ${#UPGRADE_POINTS_ARRAY[@]}"
-echo -e "\t1. I understand which this action does not support rollback"
-echo -e "\t2. I understand which this action will not end shortly cuz ROUTING COUNT reason."
-echo -e "\t3. I checked container PORTS: $(docker ps --format '{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
-echo -e "\t4. I checked container DRIVE: $(docker inspect gitlab --format '{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
+echo -e "\t1. I understood which this action DID NOT SUPPORTed rollback"
+echo -e "\t2. I understood which this action did not end shortly cuz ROUTING COUNT reason."
+echo -e "\t3. I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
+echo -e "\t4. I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
+echo -e "\t5. I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
 echo -en "\nI accepted above notice and continue this job (y/N) > "
 read n
 if ! [ "$n" == "y" -o "$n" == "Y" ]; then
@@ -239,10 +241,12 @@ if ! [ "$n" == "y" -o "$n" == "Y" ]; then
     exit 1
 fi
 
+auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)
+
 # --------------------------
 # 1️⃣ 볼륨 마운트 추출
 # --------------------------
-VOLUMES=$(docker inspect gitlab --format '{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' \
+VOLUMES=$(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' \
     | tr ' ' '\n' \
     | sed '/^$/d' \
     | awk '{printf "-v %s ", $0}' \
@@ -251,7 +255,7 @@ VOLUMES=$(docker inspect gitlab --format '{{range .Mounts}}{{.Source}}:{{.Destin
 # --------------------------
 # 2️⃣ 포트 매핑 추출
 # --------------------------
-PORTS=$(docker inspect gitlab --format '{{range $p, $conf := .HostConfig.PortBindings}}{{$p}}:{{(index $conf 0).HostPort}} {{end}}' \
+PORTS=$(docker inspect gitlab --format='{{range $p, $conf := .HostConfig.PortBindings}}{{$p}}:{{(index $conf 0).HostPort}} {{end}}' \
     | tr ' ' '\n' \
     | sed '/^$/d' \
     | sed 's/\/tcp//g' \
@@ -263,7 +267,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo "updating $CNT_VERSION to $ver... ($index/${#UPGRADE_POINTS_ARRAY[@]})"
     docker ps -a | grep gitlab &> /dev/null
     if [ $? -eq 0 ]; then
-        echo -n "stopping $CNT_VERSION container..."
+        echo -n "stopping $CNT_VERSION container with SIGINT signal..."
         docker stop gitlab &> /dev/null
         echo ' done'
     fi
@@ -288,7 +292,13 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         sleep 1
     done
     printf '\b\b%s' " "
-    echo 'done'
+    if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
+        echo "error: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
+        echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+        exit 1
+    else
+        echo 'done'
+    fi
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
@@ -298,6 +308,12 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     index=$((index + 1))
 done
 
+if [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
+    docker update --restart=$auto_restart_enabled gitlab
+    echo "update gitlab RestartPolicy $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled "
+fi
+
 echo "Successfully updated Gitlab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
+echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
 exit 0
