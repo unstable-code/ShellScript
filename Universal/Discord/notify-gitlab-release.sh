@@ -9,8 +9,9 @@ DISCORD_URL="$DISCORD_URL"
 LATEST_TAGS=$(curl -s "$REPO_TAG_FEED" \
   | grep "<title>" \
   | sed 's/.*<title>\(.*\)<\/title>.*/\1/' \
-  | grep -viE '(rc|tags|from|gitlabhq)' \
-  | head -n 1)
+  | grep -viE '(rc|tags|from|gitlabhq)' )
+
+LATEST_TAGS=$(echo "$LATEST_TAGS" | sort -Vr | awk -v last="$last_tag" '$0 != last {print; exit}')
 
 echo -e "=== (DEBUG) RESULT TAGS ===\n$LATEST_TAGS"
 
