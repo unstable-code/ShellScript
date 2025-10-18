@@ -578,9 +578,26 @@ else
     print_stacktrace_errors
 fi
 
-if [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
+if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ] && [ "$auto_restart_enabled" == 'no' ]; then
+    echo "would you like to change RestartPolicy from $auto_restart_enabled to always?"
+    echo 'AVAILABLE OPTIONS'
+    echo -e 'no\t\t\t\tDo not automatically restart the container. (Default, Current)'
+    echo -e 'on-failure[:max-retries]\tRestart the container if it exits due to an error, which manifests as a non-zero exit code.'
+    echo -e 'always\t\t\t\tAlways restart the container if it stops. If it is manually stopped, it is restarted only when Docker daemon restarts or the container itself is manually restarted. '
+    echo -e 'unless-stopped\t\t\tSimilar to always, except that when the container is stopped (manually or otherwise), it is not restarted even after Docker daemon restarts.'
+    echo -n '> '
+    read n
+    case "$n" in
+        no|always|unless-stopped|on-failure|on-failure:[0-9]*)
+            docker update --restart=$n gitlab
+            ;;
+        *)
+            echo 'If you want to edit RestartPolicy value later, please run `docker update --restart=<rule> gitlab` to apply.'
+            ;;
+    esac
+elif [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
+    echo "update gitlab RestartPolicy $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled"
     docker update --restart=$auto_restart_enabled gitlab
-    echo "update gitlab RestartPolicy $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled "
 fi
 
 echo "Successfully updated Gitlab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
