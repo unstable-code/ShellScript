@@ -137,7 +137,11 @@ if [ $use_local_versions -ne 1 ]; then
     ALL_TAGS=()
     for idx in "${!RAW_TAGS[@]}"; do
         tag="${RAW_TAGS[$idx]}"
-        draw_progress $count ${#RAW_TAGS[@]} "Exporting provided contents" 'Item'
+        if [ $extract_versions_only -eq 1 ]; then
+            draw_progress $count ${#RAW_TAGS[@]} "Exporting provided contents" 'Item'
+        else
+            draw_progress $count ${#RAW_TAGS[@]} "Including provided contents" 'Item'
+        fi
 
         # 배열에 추가
         ALL_TAGS+=("$tag")
@@ -316,6 +320,12 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
+        echo -n "Would you like to continue installations? (Y/n) > "
+        read n
+        if [ "$n" == "n" -o "$n" == "N" ]; then
+            echo 'User abort'
+            exit 1
+        fi
     else
         echo "gitlab-ce $ver update completed."
     fi
