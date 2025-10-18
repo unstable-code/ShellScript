@@ -51,6 +51,31 @@ if [ $? -ne 0 -a $UID -ne 0 ]; then
     exit 1
 fi
 
+if [ $(docker ps | grep -c gitlab) -eq 0 ]; then
+    if [ $(docker container ls -a | grep -c gitlab) -ne 0 ]; then
+        echo -n 'waiting GitLab server is back online... '
+        docker start gitlab > /dev/null
+        spinner='/-\|'
+        n=${#spinner}
+        echo -n ' '
+        while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+            printf '\b%s' "${spinner:i++%n:1}"
+
+            if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
+                echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab)" >&2
+                echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+                exit 1
+            fi
+            sleep 1
+        done
+        printf '\b\b%s' " "
+        echo 'done'
+    else
+        echo 'error: gitlab-ce container does not exist.'
+        exit 1
+    fi
+fi
+
 CURRENT_VERSION=$(docker exec gitlab dpkg -l | grep gitlab | awk '{ print $3 }')
 if [ -z $CURRENT_VERSION ]; then
     exit 1
@@ -284,7 +309,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -c healthy) -ne 1 ]; do
+    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
         printf '\b%s' "${spinner:i++%n:1}"
 
         if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
