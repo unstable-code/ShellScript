@@ -42,7 +42,13 @@ else
                     target_version_tag="$target_version_tag-ce.0"
                 fi
                 extract_versions_only=0
-                echo "using $target_version_tag instead of latest"
+                curl -sf https://hub.docker.com/layers/gitlab/gitlab-ce/$target_version_tag &> /dev/null
+                if [ $? -eq 0 ]; then
+                    echo "using $target_version_tag instead of latest"
+                else
+                    echo 'error: no such $target_version_tag tags in Docker Hub. using alternative tag: latest' >&2
+                    target_version_tag=
+                fi
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
                 temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
                 if [ -n $TARGET_URL ]; then
@@ -249,7 +255,14 @@ if [ "$use_local_versions" == '/dev/null' ]; then
         TAGS_URL="https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/path.json"
 
         echo "Processing GitLab-CE container tags... location: $TAGS_URL"
-        ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
+        ALL_TAGS=()
+        if [ -z "$target_version_tag" ]; then
+            ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
+        else
+            TAGS=($(curl -sf $TAGS_URL | jq -r '.all[]' | sed 's/$/-ce.0/g'))
+            CUSTOM_TAGS=("$target_version_tag")
+            ALL_TAGS=($(printf "%s\n" "${TAGS[@]}" "${CUSTOM_TAGS[@]}" | sort -Vu))
+        fi
 
         if [ $extract_versions_only -eq 1 ]; then
             echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
@@ -339,6 +352,11 @@ else
     RAW_TAGS_N=$(cat "$use_local_versions" | sort -V | grep -viE '(rc|nightly|latest)')
     count=1
     mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
+
+    if [ -n "$target_version_tag" ]; then
+        CUSTOM_TAGS=("$target_version_tag")
+        RAW_TAGS=($(printf "%s\n" "${RAW_TAGS[@]}" "${CUSTOM_TAGS[@]}" | sort -Vu))
+    fi
 
     for idx in "${!RAW_TAGS[@]}"; do
         tag="${RAW_TAGS[$idx]}"
