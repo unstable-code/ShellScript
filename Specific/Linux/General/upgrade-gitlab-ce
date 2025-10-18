@@ -160,9 +160,15 @@ if [ $use_local_versions -ne 1 ]; then
     rm /tmp/gitlab-parsed.log 2> /dev/null
 
     if [ $extract_versions_only -eq 1 ]; then
-        echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
         echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
-        exit 0
+        if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
+            echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
+            exit 0
+        else
+            echo -e '\nerror: failed to export gitlab-ce released tags. internal error occurred.' >&2
+            rm /tmp/gitlab-released-tags.txt &> /dev/null
+            exit 1
+        fi
     fi
 else
     cat "$1" | tr ' ' '\n' | tee "$1" > /dev/null
