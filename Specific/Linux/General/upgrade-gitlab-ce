@@ -1,40 +1,78 @@
 #!/usr/bin/env bash
 
+PAGE_SIZE=${PAGE_SIZE:-25}
+
 use_local_versions=0
 extract_versions_only=0
+use_all_tags=0
+target_version_tag=
 auto_restart_enabled=no
 
-USER_TIMEOUT=10
-
 if [ "$1" == "--help" -o "$1" == "help" ]; then
-    echo "usage: $0 [option|FILE]"
-    echo -e '\n\e[0;1mOPTIONS\e[m'
-    echo -e "--help\t\tshow this help."
-    echo -e "--extract\tdownload gitlab-ce released tags file in Docker Hub. (aka. export)"
-    echo -e "\t\ttags file will be saved to /tmp/gitlab-released-tags.txt"
-    echo -en "FILE\t\tusing provided file with already ASC sorted contents"
-    echo -e '\n\e[0;1mENV VALUES\e[m'
-    echo -e "TARGET_URL\tA simple connection test for your GitLab server."
-    exit 0
-elif [ -f "$1" ]; then
-    echo "using $1 file to take effect reducing time about sorting version tags"
-    cat -A "$1" | tail -n1 | grep '\$' &> /dev/null
-    if [ $? -ne 0 ]; then
-        echo '' >> "$1"
-    fi
+    echo "usage: $0 [--all-tags] [--target-url=http] [--extract | [--version=0.0.0] [FILE]]"
 
-    cat "$1" | grep -viE '(rc|nightly|latest)' | tee "$1" > /dev/null
-    requirements=$(cat "$1" | grep -cE '^[0-9]+\.[0-9]+\.[0-9]+-ce\.[0-9]+$')
-    total=$(cat "$1" | wc -l)
-    if [ $requirements -ne $total ]; then
-        echo "error: provided file contents does not containing gitlab-ce version tags" >&2
-        cat "$1" | head -n 10 >&2
-        exit 1
-    else
-        use_local_versions=1
-    fi
-elif [ "$1" == "--extract" -o "$1" == "extract" ] || [ "$1" == "--export" -o "$1" == "export" ]; then
-    extract_versions_only=1
+    echo -e '\n\e[0;1mOPTIONS\e[m'
+    echo -e "--help\t\t\tshow this help."
+    echo -e "--extract\t\tdownload gitlab-ce released tags file. (aka. export)"
+    echo -e "\t\t\ttags file will be saved to /tmp/gitlab-released-tags.txt"
+    echo -e "--all-tags\t\tparsing all supported in Docker Hub instead of GitLab upgrade-path site."
+    echo -e "--version=0.0.0\t\tusing provided tags instead of latest tag."
+    echo -e "--target-url=http\tA simple connection test for your GitLab server."
+    echo -e "--page-size=25\t\thow many spolling amount each page with --all-tags flags."
+    echo -e "FILE\t\t\tusing provided file with already ASC sorted contents"
+
+    echo -e '\n\e[0;1mENV VALUES\e[m'
+    echo -e "TARGET_URL\t\tsame as --target-url flags"
+    echo -e "PAGE_SIZE=25\t\tsame as --page-size flags"
+    exit 0
+else
+    params=("${@}")
+    for i in "${!params[@]}"; do
+        if [[ "${params[$i]}" == "-"* ]]; then
+            if [ "${params[$i]}" == "--all-tags" ]; then
+                use_all_tags=1
+            elif [ "$1" == "--extract" -o "$1" == "--export" ]; then
+                if [ "$use_local_versions" == '0' ]; then
+                    extract_versions_only=1
+                fi
+            elif [[ "${params[$i]}" == "--version"* ]]; then
+                target_version_tag=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
+                if [ $(echo $target_version_tag | grep -c '\-ce') -ne 1 ]; then
+                    target_version_tag="$target_version_tag-ce.0"
+                fi
+                echo "using $target_version_tag instead of latest"
+            elif [[ "${params[$i]}" == "--target-url"* ]]; then
+                temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
+                if [ -n $TARGET_URL ]; then
+                    echo "warn: overrided TARGET_URL from $TARGET_URL to $temp"
+                fi
+                TARGET_URL=$temp
+            elif [[ "${params[$i]}" == "--page-size"* ]]; then
+                temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
+                if [ -n $PAGE_SIZE ]; then
+                    echo "warn: overrided PAGE_SIZE from $PAGE_SIZE to $temp"
+                fi
+                PAGE_SIZE=$temp
+            fi
+        elif [ -f "${params[$i]}" ] && [ "$use_local_versions" == '0' -a $extract_versions_only -eq 0 ]; then
+            echo "using ${params[$i]} file to take effect reducing time about sorting version tags"
+            cat -A "${params[$i]}" | tail -n1 | grep '\$' &> /dev/null
+            if [ $? -ne 0 ]; then
+                echo '' >> "${params[$i]}"
+            fi
+
+            cat "${params[$i]}" | grep -viE '(rc|nightly|latest)' | tee "${params[$i]}" > /dev/null
+            requirements=$(cat "${params[$i]}" | grep -cE '^[0-9]+\.[0-9]+\.[0-9]+-ce\.[0-9]+$')
+            total=$(cat "${params[$i]}" | wc -l)
+            if [ $requirements -ne $total ]; then
+                echo "error: provided file contents does not containing gitlab-ce version tags" >&2
+                cat "${params[$i]}" | head -n 10 >&2
+                exit 1
+            else
+                use_local_versions=${params[$i]}
+            fi
+        fi
+    done
 fi
 
 which docker &> /dev/null
@@ -122,32 +160,105 @@ draw_progress() {
     fi
 }
 
-if [ $use_local_versions -ne 1 ]; then
-    TAGS_URL="https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/path.json"
+if [ "$use_local_versions" == '0' ]; then
+    if [ $use_all_tags -eq 0 ]; then
+        TAGS_URL="https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/path.json"
 
-    echo "Processing GitLab-CE container tags... location: $TAGS_URL"
-    ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
+        echo "Processing GitLab-CE container tags... location: $TAGS_URL"
+        ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
 
-    if [ $extract_versions_only -eq 1 ]; then
-        echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
-        if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
-            echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
-            exit 0
-        else
-            echo -e '\nerror: failed to export gitlab-ce released tags. internal error occurred.' >&2
-            rm /tmp/gitlab-released-tags.txt &> /dev/null
-            exit 1
+        if [ $extract_versions_only -eq 1 ]; then
+            echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
+            if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
+                echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
+                exit 0
+            else
+                echo -e '\nerror: failed to export gitlab-ce released tags. internal error occurred.' >&2
+                rm /tmp/gitlab-released-tags.txt &> /dev/null
+                exit 1
+            fi
+        fi
+    else
+        TAGS_URL="https://hub.docker.com/v2/repositories/gitlab/gitlab-ce/tags/?page_size=$PAGE_SIZE"
+
+        # 1. 첫 페이지 요청
+        RESPONSE=$(curl -sL "$TAGS_URL")
+        TOTAL_COUNT=$(echo "$RESPONSE" | jq '.count')
+
+        # 2. 전체 페이지 수 계산
+        TOTAL_PAGES=$(( (TOTAL_COUNT + PAGE_SIZE - 1) / PAGE_SIZE ))
+
+        ALL_TAGS=()
+
+        echo "Spolling GitLab-CE container tags... location: $TAGS_URL"
+        while [ -n "$TAGS_URL" ]; do
+            RESPONSE=$(curl -sL "$TAGS_URL")
+            TAGS=$(echo "$RESPONSE" | jq -r '.results[].name')
+            if [ -z "$TAGS" ]; then
+                break  # 더 이상 태그 없음
+            else
+                CURRENT_PAGE=$(echo "$TAGS_URL" | grep -oP 'page=\K[0-9]+' || echo 1)
+                draw_progress $CURRENT_PAGE $TOTAL_PAGES 'Querying GitLab Releases' 'Page'
+            fi
+            ALL_TAGS+=($TAGS)
+            TAGS_URL=$(echo "$RESPONSE" | jq -r '.next')
+        done
+
+        echo -e "\nSorting ASC GitLab-CE released tags..."
+
+        # 버전 정렬
+        printf '%s\n' "${ALL_TAGS[@]}" > /tmp/gitlab-parsed.log
+        cat /tmp/gitlab-parsed.log | tr ' ' '\n' | tee /tmp/gitlab-parsed.log > /dev/null
+
+        RAW_TAGS_N=$(cat /tmp/gitlab-parsed.log | sort -V | grep -viE '(rc|nightly|latest)')
+        count=1
+        mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
+
+        ALL_TAGS=()
+        for idx in "${!RAW_TAGS[@]}"; do
+            tag="${RAW_TAGS[$idx]}"
+            if [ $extract_versions_only -eq 1 ]; then
+                draw_progress $count ${#RAW_TAGS[@]} "Exporting provided contents" 'Item'
+            else
+                draw_progress $count ${#RAW_TAGS[@]} "Including provided contents" 'Item'
+            fi
+
+            # 배열에 추가
+            ALL_TAGS+=("$tag")
+            count=$((count + 1))
+
+            # 첫 번째 비교
+            if [ $((idx + 1)) -lt ${#RAW_TAGS[@]} ]; then
+                next_tag="${RAW_TAGS[$((idx + 1))]}"
+                first=$(printf '%s\n%s\n' "$tag" "$next_tag" | sort -V | head -n1)
+                if ! [[ "$first" == "$tag" ]]; then
+                    echo -e "\nerror: tags are NOT in ASC order: $tag > $next_tag" >&2
+                    exit 1
+                fi
+            fi
+        done
+        rm /tmp/gitlab-parsed.log 2> /dev/null
+        if [ $extract_versions_only -eq 1 ]; then
+            echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
+            if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
+                echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
+                exit 0
+            else
+                echo -e '\nerror: failed to export gitlab-ce released tags. internal error occurred.' >&2
+                rm /tmp/gitlab-released-tags.txt &> /dev/null
+                exit 1
+            fi
         fi
     fi
 else
-    cat "$1" | tr ' ' '\n' | tee "$1" > /dev/null
-    RAW_TAGS_N=$(cat "$1" | sort -V | grep -viE '(rc|nightly|latest)')
+    cat "$use_local_versions" | tr ' ' '\n' | tee "$use_local_versions" > /dev/null
+    RAW_TAGS_N=$(cat "$use_local_versions" | sort -V | grep -viE '(rc|nightly|latest)')
     count=1
     mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
 
     for idx in "${!RAW_TAGS[@]}"; do
         tag="${RAW_TAGS[$idx]}"
-        draw_progress $count ${#RAW_TAGS[@]} "Importing provided contents" 'Item'
+        draw_progress $count ${#RAW_TAGS[@]} "Verifying provided contents" 'Item'
 
         # 배열에 추가
         ALL_TAGS+=("$tag")
@@ -179,6 +290,23 @@ for idx in "${!ALL_TAGS[@]}"; do
     fi
     count=$((count + 1))
 done
+
+if [ -n "$target_version_tag" ]; then
+    TEMP=()
+    count=1
+    for idx in "${!UPDATABLE_TAGS[@]}"; do
+        tag="${UPDATABLE_TAGS[$idx]}"
+        draw_progress $count ${#UPDATABLE_TAGS[@]} "Listing tags before $target_version_tag" 'Item'
+
+        # 대상 버전보다 최신이면 배열에 미포함
+        if [[ "$(printf '%s\n%s\n' "$tag" "$target_version_tag" | sort -V | head -n1)" == "$tag" ]]; then
+            TEMP+=("$tag")
+        fi
+        count=$((count + 1))
+    done
+
+    UPDATABLE_TAGS=("${TEMP[@]}")
+fi
 
 # 2. 마이너 릴리즈별 첫/최신 버전 선택
 declare -A MINOR_FIRST
@@ -233,12 +361,19 @@ fi
 echo -e "\nWould you like to upgrade GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}?"
 echo "This action can not be undo. PLEASE BACKUP gitlab drive BEFORE STARTING UPDATE..."
 echo "You should update pointing release either. ROUTING COUNT: ${#UPGRADE_POINTS_ARRAY[@]}"
+if [ ${#UPGRADE_POINTS_ARRAY[@]} -le 5 ]; then
+    echo -e "\ttraceroute: ${UPGRADE_POINTS_ARRAY[@]}"
+fi
 echo -e "\t1. I understood which this action DID NOT SUPPORTed rollback"
 echo -e "\t2. I understood which this action did not end shortly cuz ROUTING COUNT reason."
 echo -e "\t3. I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
 echo -e "\t4. I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
 echo -e "\t5. I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
-echo -e "\t6. I checked TARGET_URL is valid: $TARGET_URL"
+if [ $use_all_tags -eq 0 ]; then
+    echo -e "\t6. I checked TARGET_URL is valid: $TARGET_URL"
+else
+    echo -e "\t6. I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
+fi
 echo -en "\nI accepted above notice and continue this job (y/N) > "
 read n
 if ! [ "$n" == "y" -o "$n" == "Y" ]; then
