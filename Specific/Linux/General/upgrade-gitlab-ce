@@ -353,6 +353,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         echo 'note: waiting user interrupt like SIGINT... '
         for((i=0;i<=$USER_TIMEOUT;i++)); do
             draw_progress $i $USER_TIMEOUT 'Waiting Interrupts' 'Elapsed'
+            sleep 1
         done
     else
         echo "gitlab-ce $ver update completed."
