@@ -34,12 +34,14 @@ else
             elif [ "${params[$i]}" == "--extract" -o "${params[$i]}" == "--export" ]; then
                 if [ "$use_local_versions" == '/dev/null' ]; then
                     extract_versions_only=1
+                    target_version_tag=
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
                 target_version_tag=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
                 if [ $(echo $target_version_tag | grep -c '\-ce') -ne 1 ]; then
                     target_version_tag="$target_version_tag-ce.0"
                 fi
+                extract_versions_only=0
                 echo "using $target_version_tag instead of latest"
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
                 temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
