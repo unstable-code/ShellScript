@@ -75,6 +75,93 @@ else
     done
 fi
 
+# --------------------------
+# 1️⃣ 볼륨 마운트 추출
+# --------------------------
+VOLUMES=$(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' \
+    | tr ' ' '\n' \
+    | sed '/^$/d' \
+    | awk '{printf "-v %s ", $0}' \
+    | sed 's/ $//')
+
+# --------------------------
+# 2️⃣ 포트 매핑 추출
+# --------------------------
+PORTS=$(docker inspect gitlab --format='{{range $p, $conf := .HostConfig.PortBindings}}{{$p}}:{{(index $conf 0).HostPort}} {{end}}' \
+    | tr ' ' '\n' \
+    | sed '/^$/d' \
+    | sed 's/\/tcp//g' \
+    | awk -F: '{printf "-p %s:%s ", $2, $1}')
+
+print_stacktrace_errors() {
+    if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
+        echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
+
+        if [ $# -eq 2 ]; then
+            echo "An error occurred while installing $1. will trying to rollback with following previous version: $2."
+
+            docker ps | grep gitlab &> /dev/null
+            if [ $? -eq 0 ]; then
+                echo -n "stopping $1 container with SIGINT signal..."
+                docker stop gitlab &> /dev/null
+                echo ' done'
+            fi
+            echo -n "removing $1 container..."
+            docker container rm gitlab &> /dev/null
+            echo ' done'
+
+            echo -n "removing previous $1 image..."
+            docker image rm $(docker images | grep gitlab/gitlab-ce | awk '{ print $3 }') &> /dev/null
+            echo ' done'
+
+            docker pull gitlab/gitlab-ce:$2
+            docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$2
+
+            echo -n "waiting until gitlab/gitlab-ce:$2 server to boot... "
+            spinner='/-\|'
+            n=${#spinner}
+            echo -n ' '
+            while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
+                printf '\b%s' "${spinner:i++%n:1}"
+                print_stacktrace_errors
+                sleep 1
+            done
+            printf '\b\b%s' " "
+            echo 'done'
+
+            echo -n "waiting until gitlab/gitlab-ce:$2 container is ready... "
+            spinner='/-\|'
+            n=${#spinner}
+            echo -n ' '
+            while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+                printf '\b%s' "${spinner:i++%n:1}"
+                print_stacktrace_errors
+                sleep 1
+            done
+            printf '\b\b%s' " "
+            echo 'done'
+
+            docker exec gitlab gitlab-ctl status
+            if [ $? -eq 0 ]; then
+                docker exec gitlab gitlab-ctl reconfigure
+                docker exec gitlab gitlab-ctl pg-upgrade
+                docker exec gitlab gitlab-rake db:migrate
+                docker exec gitlab gitlab-ctl restart
+            else
+                print_stacktrace_errors
+            fi
+            echo "Successfully downgraded Gitlab server from $1 to $2"
+            echo 'please re-run this script to continue upgrade process. (recommends --all-tags flag enable)'
+        else
+            docker logs gitlab | $PAGER
+            docker run --rm -it --name gitlab-debug $VOLUMES $PORTS --entrypoint /bin/bash gitlab/gitlab-ce:$(docker container ls -a | grep gitlab | awk '{ print $2 }' | awk -F ':' '{ print $2 }')
+
+            echo 'please re-run this script to continue upgrade process.'
+        fi
+        exit 1
+    fi
+}
+
 which docker &> /dev/null
 if [ $? -ne 0 ]; then
     echo "This system did not installed docker yet. $(uname -a)" >&2
@@ -98,12 +185,7 @@ if [ $(docker ps | grep -c gitlab) -eq 0 ]; then
         echo -n ' '
         while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
             printf '\b%s' "${spinner:i++%n:1}"
-
-            if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-                echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
-                docker logs gitlab | $PAGER
-                exit 1
-            fi
+            print_stacktrace_errors
             sleep 1
         done
         printf '\b\b%s' " "
@@ -388,29 +470,36 @@ fi
 
 auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)
 
-# --------------------------
-# 1️⃣ 볼륨 마운트 추출
-# --------------------------
-VOLUMES=$(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' \
-    | tr ' ' '\n' \
-    | sed '/^$/d' \
-    | awk '{printf "-v %s ", $0}' \
-    | sed 's/ $//')
-
-# --------------------------
-# 2️⃣ 포트 매핑 추출
-# --------------------------
-PORTS=$(docker inspect gitlab --format='{{range $p, $conf := .HostConfig.PortBindings}}{{$p}}:{{(index $conf 0).HostPort}} {{end}}' \
-    | tr ' ' '\n' \
-    | sed '/^$/d' \
-    | sed 's/\/tcp//g' \
-    | awk -F: '{printf "-p %s:%s ", $2, $1}')
-
 index=1
 CNT_VERSION=$CURRENT_VERSION
 for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo "updating $CNT_VERSION to $ver... ($index/${#UPGRADE_POINTS_ARRAY[@]})"
-    docker ps -a | grep gitlab &> /dev/null
+    docker ps | grep gitlab &> /dev/null
+    if [ $? -ne 0 ]; then
+        docker start gitlab &> /dev/null
+        echo -n "waiting until gitlab/gitlab-ce:$CNT_VERSION container is ready..."
+        spinner='/-\|'
+        n=${#spinner}
+        echo -n ' '
+        while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+            printf '\b%s' "${spinner:i++%n:1}"
+            print_stacktrace_errors
+            sleep 1
+        done
+        printf '\b\b%s' " "
+        echo 'done'
+    fi
+
+    docker exec gitlab gitlab-ctl status
+    if [ $? -eq 0 ]; then
+        docker exec gitlab gitlab-ctl reconfigure
+        docker exec gitlab gitlab-ctl pg-upgrade
+        docker exec gitlab gitlab-rake db:migrate
+    else
+        print_stacktrace_errors
+    fi
+
+    docker ps | grep gitlab &> /dev/null
     if [ $? -eq 0 ]; then
         echo -n "stopping $CNT_VERSION container with SIGINT signal..."
         docker stop gitlab &> /dev/null
@@ -424,7 +513,6 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     docker image rm $(docker images | grep gitlab/gitlab-ce | awk '{ print $3 }') &> /dev/null
     echo ' done'
 
-    CNT_VERSION=$ver
     docker pull gitlab/gitlab-ce:$ver
     docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$ver
 
@@ -434,12 +522,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo -n ' '
     while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
         printf '\b%s' "${spinner:i++%n:1}"
-
-        if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab). manually action required." >&2
-            docker logs gitlab | $PAGER
-            exit 1
-        fi
+        print_stacktrace_errors $ver $CNT_VERSION
         sleep 1
     done
     printf '\b\b%s' " "
@@ -451,12 +534,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo -n ' '
     while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
         printf '\b%s' "${spinner:i++%n:1}"
-
-        if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab). manually action required." >&2
-            docker logs gitlab | $PAGER
-            exit 1
-        fi
+        print_stacktrace_errors $ver $CNT_VERSION
         sleep 1
     done
     printf '\b\b%s' " "
@@ -467,8 +545,18 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     else
         echo "gitlab-ce $ver update completed."
     fi
+    CNT_VERSION=$ver
     index=$((index + 1))
 done
+
+docker exec gitlab gitlab-ctl status
+if [ $? -eq 0 ]; then
+    docker exec gitlab gitlab-ctl reconfigure
+    docker exec gitlab gitlab-ctl pg-upgrade
+    docker exec gitlab gitlab-rake db:migrate
+else
+    print_stacktrace_errors
+fi
 
 if [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
     docker update --restart=$auto_restart_enabled gitlab
