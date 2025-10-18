@@ -2,14 +2,14 @@
 
 PAGE_SIZE=${PAGE_SIZE:-25}
 
-use_local_versions=0
+use_local_versions=/dev/null
 extract_versions_only=0
 use_all_tags=0
 target_version_tag=
 auto_restart_enabled=no
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
-    echo "usage: $0 [--all-tags] [--target-url=http] [--extract | [--version=0.0.0] [FILE]]"
+    echo "usage: $0 [--all-tags [--page-size=25]] [--target-url=http] [--extract | [--version=0.0.0] [FILE]]"
 
     echo -e '\n\e[0;1mOPTIONS\e[m'
     echo -e "--help\t\t\tshow this help."
@@ -31,8 +31,8 @@ else
         if [[ "${params[$i]}" == "-"* ]]; then
             if [ "${params[$i]}" == "--all-tags" ]; then
                 use_all_tags=1
-            elif [ "$1" == "--extract" -o "$1" == "--export" ]; then
-                if [ "$use_local_versions" == '0' ]; then
+            elif [ "${params[$i]}" == "--extract" -o "${params[$i]}" == "--export" ]; then
+                if [ "$use_local_versions" == '/dev/null' ]; then
                     extract_versions_only=1
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
@@ -54,7 +54,7 @@ else
                 fi
                 PAGE_SIZE=$temp
             fi
-        elif [ -f "${params[$i]}" ] && [ "$use_local_versions" == '0' -a $extract_versions_only -eq 0 ]; then
+        elif [ -f "${params[$i]}" ] && [ "$use_local_versions" == '/dev/null' -a $extract_versions_only -eq 0 ]; then
             echo "using ${params[$i]} file to take effect reducing time about sorting version tags"
             cat -A "${params[$i]}" | tail -n1 | grep '\$' &> /dev/null
             if [ $? -ne 0 ]; then
@@ -160,7 +160,7 @@ draw_progress() {
     fi
 }
 
-if [ "$use_local_versions" == '0' ]; then
+if [ "$use_local_versions" == '/dev/null' ]; then
     if [ $use_all_tags -eq 0 ]; then
         TAGS_URL="https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/path.json"
 
