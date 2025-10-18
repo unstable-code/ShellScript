@@ -100,8 +100,8 @@ if [ $(docker ps | grep -c gitlab) -eq 0 ]; then
             printf '\b%s' "${spinner:i++%n:1}"
 
             if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-                echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab)" >&2
-                echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+                echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
+                docker logs gitlab | $PAGER
                 exit 1
             fi
             sleep 1
@@ -436,8 +436,8 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         printf '\b%s' "${spinner:i++%n:1}"
 
         if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
-            echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab). manually action required." >&2
+            docker logs gitlab | $PAGER
             exit 1
         fi
         sleep 1
@@ -453,8 +453,8 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         printf '\b%s' "${spinner:i++%n:1}"
 
         if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
-            echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab). manually action required." >&2
+            docker logs gitlab | $PAGER
             exit 1
         fi
         sleep 1
