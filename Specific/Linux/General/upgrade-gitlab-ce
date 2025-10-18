@@ -4,7 +4,7 @@ use_local_versions=0
 extract_versions_only=0
 auto_restart_enabled=no
 
-PAGE_SIZE=${PAGE_SIZE:-10}
+PAGE_SIZE=${PAGE_SIZE:-25}
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo "usage: $0 [option|FILE]"
@@ -15,7 +15,7 @@ if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo -en "FILE\t\tusing provided file with already ASC sorted contents"
     echo -e '\n\e[0;1mENV VALUES\e[m'
     echo -e "TARGET_URL\tA simple connection test for your GitLab server."
-    echo -e "PAGE_SIZE=10\thow many spolling amount each page."
+    echo -e "PAGE_SIZE=25\thow many spolling amount each page."
     exit 0
 elif [ -f "$1" ]; then
     echo "using $1 file to take effect reducing time about sorting version tags"
@@ -240,6 +240,17 @@ mapfile -t UPGRADE_POINTS_ARRAY < <(
     done
 )
 
+if [ -z "$TARGET_URL" ]; then
+    echo 'TARGET_URL does not configured yet. please enter your GitLab server URL.'
+    echo 'ex: https://gitlab.com'
+    echo -n '> '
+    TARGET_URL=$(read n && echo $n)
+    if [ -z "$TARGET_URL" ]; then
+        echo 'User abort'
+        exit 1
+    fi
+fi
+
 if [ ${#UPGRADE_POINTS_ARRAY[@]} -eq 0 ]; then
     echo "requirements already satisfied: v$CURRENT_VERSION"
 
@@ -316,23 +327,22 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         printf '\b%s' "${spinner:i++%n:1}"
         sleep 1
     done
-    printf '\b\b%s' " "
+
     if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-        echo "error: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
+        echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
         echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
         exit 1
     else
+        while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
+            printf '\b%s' "${spinner:i++%n:1}"
+            sleep 1
+        done
+        printf '\b\b%s' " "
         echo 'done'
     fi
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
-        echo -n "Would you like to continue installations? (Y/n) > "
-        read n
-        if [ "$n" == "n" -o "$n" == "N" ]; then
-            echo 'User abort'
-            exit 1
-        fi
     else
         echo "gitlab-ce $ver update completed."
     fi
@@ -347,8 +357,4 @@ fi
 echo "Successfully updated Gitlab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
 
-curl -sf -o /dev/null $TARGET_URL/explore/projects &> /dev/null
-if [ $? -ne 0 ]; then
-    echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
-fi
 exit 0
