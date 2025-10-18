@@ -32,19 +32,18 @@ else
             if [ "${params[$i]}" == "--all-tags" ]; then
                 use_all_tags=1
             elif [ "${params[$i]}" == "--extract" -o "${params[$i]}" == "--export" ]; then
-                if [ "$use_local_versions" == '/dev/null' ]; then
+                if [ "$use_local_versions" == '/dev/null' -a -z "$target_version_tag" ]; then
                     extract_versions_only=1
-                    target_version_tag=
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
                 target_version_tag=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
                 if [ $(echo $target_version_tag | grep -c '\-ce') -ne 1 ]; then
                     target_version_tag="$target_version_tag-ce.0"
                 fi
-                extract_versions_only=0
                 curl -sf https://hub.docker.com/layers/gitlab/gitlab-ce/$target_version_tag &> /dev/null
                 if [ $? -eq 0 ]; then
                     echo "using $target_version_tag instead of latest"
+                    extract_versions_only=0
                 else
                     echo 'error: no such $target_version_tag tags in Docker Hub. using alternative tag: latest' >&2
                     target_version_tag=
