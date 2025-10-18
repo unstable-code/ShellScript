@@ -364,6 +364,10 @@ echo "You should update pointing release either. ROUTING COUNT: ${#UPGRADE_POINT
 if [ ${#UPGRADE_POINTS_ARRAY[@]} -le 5 ]; then
     echo -e "\ttraceroute: ${UPGRADE_POINTS_ARRAY[@]}"
 fi
+if [ $use_all_tags -eq 0 ]; then
+    echo "Follow this link to get more infomations: https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/?current=$(echo $CURRENT_VERSION | sed 's/-ce.0//')&target=$(echo ${UPGRADE_POINTS_ARRAY[-1]} | sed 's/-ce.0//')&distro=docker"
+fi
+echo ''
 echo -e "\t1. I understood which this action DID NOT SUPPORTed rollback"
 echo -e "\t2. I understood which this action did not end shortly cuz ROUTING COUNT reason."
 echo -e "\t3. I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
@@ -374,6 +378,7 @@ if [ $use_all_tags -eq 0 ]; then
 else
     echo -e "\t6. I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
 fi
+
 echo -en "\nI accepted above notice and continue this job (y/N) > "
 read n
 if ! [ "$n" == "y" -o "$n" == "Y" ]; then
