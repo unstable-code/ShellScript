@@ -83,6 +83,20 @@ else
     done
 fi
 
+which docker &> /dev/null
+if [ $? -ne 0 ]; then
+    echo "This system did not installed docker yet. $(uname -a)" >&2
+    echo 'Please install docker or Container Manager before running this script.' >&2
+    echo -e '\nref:\n\thttps://docs.docker.com/engine/install/\n\thttps://www.synology.com/dsm/feature/container-manager' >&2
+    exit 1
+fi
+
+id | grep docker &> /dev/null
+if [ $? -ne 0 -a $UID -ne 0 ]; then
+    echo "the $USER user does not have enough docker.sock permission." >&2
+    exit 1
+fi
+
 if [ $(docker ps -a | grep -c gitlab) -eq 0 ]; then
     echo 'error: gitlab/gitlab-ce container does not exist.' >&2
     exit 1
@@ -174,20 +188,6 @@ print_stacktrace_errors() {
         exit 1
     fi
 }
-
-which docker &> /dev/null
-if [ $? -ne 0 ]; then
-    echo "This system did not installed docker yet. $(uname -a)" >&2
-    echo 'Please install docker or Container Manager before running this script.' >&2
-    echo -e '\nref:\n\thttps://docs.docker.com/engine/install/\n\thttps://www.synology.com/dsm/feature/container-manager' >&2
-    exit 1
-fi
-
-id | grep docker &> /dev/null
-if [ $? -ne 0 -a $UID -ne 0 ]; then
-    echo "the $USER user does not have enough docker.sock permission." >&2
-    exit 1
-fi
 
 if [ $(docker ps | grep -c gitlab) -eq 0 ]; then
     echo -n 'waiting until GitLab server is back to online... '
