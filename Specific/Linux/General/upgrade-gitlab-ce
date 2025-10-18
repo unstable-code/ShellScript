@@ -29,6 +29,8 @@ else
     params=("${@}")
     for i in "${!params[@]}"; do
         if [[ "${params[$i]}" == "-"* ]]; then
+            temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
+
             if [ "${params[$i]}" == "--all-tags" ]; then
                 use_all_tags=1
             elif [ "${params[$i]}" == "--extract" -o "${params[$i]}" == "--export" ]; then
@@ -36,10 +38,15 @@ else
                     extract_versions_only=1
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
-                target_version_tag=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
-                if [ $(echo $target_version_tag | grep -c '\-ce') -ne 1 ]; then
-                    target_version_tag="$target_version_tag-ce.0"
+                if [ -n "$target_version_tag" ]; then
+                    echo "warn: overrided target_version_tag from $target_version_tag to $temp"
                 fi
+                if [ $(echo $temp | grep -c '\-ce') -ne 1 ]; then
+                    target_version_tag="$temp-ce.0"
+                else
+                    target_version_tag=$temp
+                fi
+
                 curl -sf https://hub.docker.com/layers/gitlab/gitlab-ce/$target_version_tag &> /dev/null
                 if [ $? -eq 0 ]; then
                     echo "using $target_version_tag instead of latest"
@@ -49,13 +56,11 @@ else
                     target_version_tag=
                 fi
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
-                temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
                 if [ -n "$TARGET_URL" ]; then
                     echo "warn: overrided TARGET_URL from $TARGET_URL to $temp"
                 fi
                 TARGET_URL=$temp
             elif [[ "${params[$i]}" == "--page-size"* ]]; then
-                temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
                 if [ -n "$PAGE_SIZE" ]; then
                     echo "warn: overrided PAGE_SIZE from $PAGE_SIZE to $temp"
                 fi
@@ -74,7 +79,7 @@ else
             if [ $requirements -ne $total ]; then
                 echo "error: provided file contents does not containing gitlab-ce version tags" >&2
                 cat "${params[$i]}" | head -n 10 >&2
-                exit 1
+                continue
             else
                 use_local_versions=${params[$i]}
             fi
