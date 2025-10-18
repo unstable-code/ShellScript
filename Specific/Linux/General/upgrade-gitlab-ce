@@ -258,6 +258,7 @@ echo -e "\t2. I understood which this action did not end shortly cuz ROUTING COU
 echo -e "\t3. I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
 echo -e "\t4. I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
 echo -e "\t5. I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
+echo -e "\t6. I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
 echo -en "\nI accepted above notice and continue this job (y/N) > "
 read n
 if ! [ "$n" == "y" -o "$n" == "Y" ]; then
