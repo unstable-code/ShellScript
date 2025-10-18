@@ -39,7 +39,7 @@ else
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
                 if [ -n "$target_version_tag" ]; then
-                    echo "warn: overrided target_version_tag from $target_version_tag to $temp"
+                    echo "warn: overriding target_version_tag from $target_version_tag to $temp"
                 fi
                 if [ $(echo $temp | grep -c '\-ce') -ne 1 ]; then
                     target_version_tag="$temp-ce.0"
@@ -57,12 +57,12 @@ else
                 fi
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
                 if [ -n "$TARGET_URL" ]; then
-                    echo "warn: overrided TARGET_URL from $TARGET_URL to $temp"
+                    echo "warn: overriding TARGET_URL from $TARGET_URL to $temp"
                 fi
                 TARGET_URL=$temp
             elif [[ "${params[$i]}" == "--page-size"* ]]; then
                 if [ -n "$PAGE_SIZE" ]; then
-                    echo "warn: overrided PAGE_SIZE from $PAGE_SIZE to $temp"
+                    echo "warn: overriding PAGE_SIZE from $PAGE_SIZE to $temp"
                 fi
                 PAGE_SIZE=$temp
             fi
