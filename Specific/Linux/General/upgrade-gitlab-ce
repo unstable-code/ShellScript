@@ -5,6 +5,7 @@ extract_versions_only=0
 auto_restart_enabled=no
 
 PAGE_SIZE=${PAGE_SIZE:-25}
+USER_TIMEOUT=10
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo "usage: $0 [option|FILE]"
@@ -319,21 +320,27 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     docker pull gitlab/gitlab-ce:$ver
     docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$ver
 
-    echo -n "waiting until gitlab/gitlab-ce:$ver container is ready... "
+    echo -n "waiting until gitlab/gitlab-ce:$ver server to boot... "
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -c healthy) -ne 1 ]; do
+    while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
         printf '\b%s' "${spinner:i++%n:1}"
         sleep 1
     done
+    printf '\b\b%s' " "
+    echo 'done'
 
     if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
         echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
         echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
         exit 1
     else
-        while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
+        echo -n "waiting until gitlab/gitlab-ce:$ver container is ready... "
+        spinner='/-\|'
+        n=${#spinner}
+        echo -n ' '
+        while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -c healthy) -ne 1 ]; do
             printf '\b%s' "${spinner:i++%n:1}"
             sleep 1
         done
@@ -343,6 +350,10 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
+        echo 'note: waiting user interrupt like SIGINT... '
+        for((i=0;i<=$USER_TIMEOUT;i++)); do
+            draw_progress $i $USER_TIMEOUT 'Waiting Interrupts' 'Elapsed'
+        done
     else
         echo "gitlab-ce $ver update completed."
     fi
