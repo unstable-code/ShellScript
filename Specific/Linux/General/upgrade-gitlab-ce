@@ -350,11 +350,6 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
-        echo 'note: waiting user interrupt like SIGINT... '
-        for((i=0;i<=$USER_TIMEOUT;i++)); do
-            draw_progress $i $USER_TIMEOUT 'Waiting Interrupts' 'Elapsed'
-            sleep 1
-        done
     else
         echo "gitlab-ce $ver update completed."
     fi
