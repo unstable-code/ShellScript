@@ -269,27 +269,33 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo -n ' '
     while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
         printf '\b%s' "${spinner:i++%n:1}"
+
+        if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
+            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
+            echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+            exit 1
+        fi
         sleep 1
     done
     printf '\b\b%s' " "
     echo 'done'
 
-    if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-        echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
-        echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
-        exit 1
-    else
-        echo -n "waiting until gitlab/gitlab-ce:$ver container is ready... "
-        spinner='/-\|'
-        n=${#spinner}
-        echo -n ' '
-        while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -c healthy) -ne 1 ]; do
-            printf '\b%s' "${spinner:i++%n:1}"
-            sleep 1
-        done
-        printf '\b\b%s' " "
-        echo 'done'
-    fi
+    echo -n "waiting until gitlab/gitlab-ce:$ver container is ready... "
+    spinner='/-\|'
+    n=${#spinner}
+    echo -n ' '
+    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -c healthy) -ne 1 ]; do
+        printf '\b%s' "${spinner:i++%n:1}"
+
+        if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
+            echo -e "\nerror: gitlab/gitlab-ce:$ver container was died with following status code: $(docker inspect --format='{{.State.Health.Status}}' gitlab). manually action required." >&2
+            echo -e "\tenter 'docker logs gitlab' command to get more infomations" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+    printf '\b\b%s' " "
+    echo 'done'
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
