@@ -4,7 +4,6 @@ use_local_versions=0
 extract_versions_only=0
 auto_restart_enabled=no
 
-PAGE_SIZE=${PAGE_SIZE:-25}
 USER_TIMEOUT=10
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
@@ -16,7 +15,6 @@ if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo -en "FILE\t\tusing provided file with already ASC sorted contents"
     echo -e '\n\e[0;1mENV VALUES\e[m'
     echo -e "TARGET_URL\tA simple connection test for your GitLab server."
-    echo -e "PAGE_SIZE=25\thow many spolling amount each page."
     exit 0
 elif [ -f "$1" ]; then
     echo "using $1 file to take effect reducing time about sorting version tags"
@@ -100,65 +98,10 @@ draw_progress() {
 }
 
 if [ $use_local_versions -ne 1 ]; then
-    TAGS_URL="https://hub.docker.com/v2/repositories/gitlab/gitlab-ce/tags/?page_size=$PAGE_SIZE"
+    TAGS_URL="https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/path.json"
 
-    # 1. 첫 페이지 요청
-    RESPONSE=$(curl -sL "$TAGS_URL")
-    TOTAL_COUNT=$(echo "$RESPONSE" | jq '.count')
-
-    # 2. 전체 페이지 수 계산
-    TOTAL_PAGES=$(( (TOTAL_COUNT + PAGE_SIZE - 1) / PAGE_SIZE ))
-
-    ALL_TAGS=()
-
-    echo "Spolling GitLab-CE container tags... location: $TAGS_URL"
-    while [ -n "$TAGS_URL" ]; do
-        RESPONSE=$(curl -sL "$TAGS_URL")
-        TAGS=$(echo "$RESPONSE" | jq -r '.results[].name')
-        if [ -z "$TAGS" ]; then
-          break  # 더 이상 태그 없음
-        else
-            CURRENT_PAGE=$(echo "$TAGS_URL" | grep -oP 'page=\K[0-9]+' || echo 1)
-            draw_progress $CURRENT_PAGE $TOTAL_PAGES 'Querying GitLab Releases' 'Page'
-        fi
-        ALL_TAGS+=($TAGS)
-        TAGS_URL=$(echo "$RESPONSE" | jq -r '.next')
-    done
-
-    echo -e "\nSorting ASC GitLab-CE released tags..."
-
-    # 버전 정렬
-    printf '%s\n' "${ALL_TAGS[@]}" > /tmp/gitlab-parsed.log
-    cat /tmp/gitlab-parsed.log | tr ' ' '\n' | tee /tmp/gitlab-parsed.log > /dev/null
-
-    RAW_TAGS_N=$(cat /tmp/gitlab-parsed.log | sort -V | grep -viE '(rc|nightly|latest)')
-    count=1
-    mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
-
-    ALL_TAGS=()
-    for idx in "${!RAW_TAGS[@]}"; do
-        tag="${RAW_TAGS[$idx]}"
-        if [ $extract_versions_only -eq 1 ]; then
-            draw_progress $count ${#RAW_TAGS[@]} "Exporting provided contents" 'Item'
-        else
-            draw_progress $count ${#RAW_TAGS[@]} "Including provided contents" 'Item'
-        fi
-
-        # 배열에 추가
-        ALL_TAGS+=("$tag")
-        count=$((count + 1))
-
-        # 첫 번째 비교
-        if [ $((idx + 1)) -lt ${#RAW_TAGS[@]} ]; then
-            next_tag="${RAW_TAGS[$((idx + 1))]}"
-            first=$(printf '%s\n%s\n' "$tag" "$next_tag" | sort -V | head -n1)
-            if ! [[ "$first" == "$tag" ]]; then
-                echo -e "\nerror: tags are NOT in ASC order: $tag > $next_tag" >&2
-                exit 1
-            fi
-        fi
-    done
-    rm /tmp/gitlab-parsed.log 2> /dev/null
+    echo "Processing GitLab-CE container tags... location: $TAGS_URL"
+    ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
 
     if [ $extract_versions_only -eq 1 ]; then
         echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
@@ -270,7 +213,7 @@ echo -e "\t2. I understood which this action did not end shortly cuz ROUTING COU
 echo -e "\t3. I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
 echo -e "\t4. I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
 echo -e "\t5. I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
-echo -e "\t6. I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
+echo -e "\t6. I checked TARGET_URL is valid: $TARGET_URL"
 echo -en "\nI accepted above notice and continue this job (y/N) > "
 read n
 if ! [ "$n" == "y" -o "$n" == "Y" ]; then
