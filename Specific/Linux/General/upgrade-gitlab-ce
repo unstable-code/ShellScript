@@ -51,13 +51,13 @@ else
                 fi
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
                 temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
-                if [ -n $TARGET_URL ]; then
+                if [ -n "$TARGET_URL" ]; then
                     echo "warn: overrided TARGET_URL from $TARGET_URL to $temp"
                 fi
                 TARGET_URL=$temp
             elif [[ "${params[$i]}" == "--page-size"* ]]; then
                 temp=$(echo "${params[$i]}" | awk -F '=' '{ print $2 }')
-                if [ -n $PAGE_SIZE ]; then
+                if [ -n "$PAGE_SIZE" ]; then
                     echo "warn: overrided PAGE_SIZE from $PAGE_SIZE to $temp"
                 fi
                 PAGE_SIZE=$temp
@@ -81,6 +81,11 @@ else
             fi
         fi
     done
+fi
+
+if [ $(docker ps -a | grep -c gitlab) -eq 0 ]; then
+    echo 'error: gitlab/gitlab-ce container does not exist.' >&2
+    exit 1
 fi
 
 # --------------------------
@@ -185,27 +190,22 @@ if [ $? -ne 0 -a $UID -ne 0 ]; then
 fi
 
 if [ $(docker ps | grep -c gitlab) -eq 0 ]; then
-    if [ $(docker container ls -a | grep -c gitlab) -ne 0 ]; then
-        echo -n 'waiting until GitLab server is back to online... '
-        docker start gitlab > /dev/null
-        spinner='/-\|'
-        n=${#spinner}
-        echo -n ' '
-        while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
-            printf '\b%s' "${spinner:i++%n:1}"
-            print_stacktrace_errors
-            sleep 1
-        done
-        printf '\b\b%s' " "
-        echo 'done'
-    else
-        echo 'error: gitlab-ce container does not exist.'
-        exit 1
-    fi
+    echo -n 'waiting until GitLab server is back to online... '
+    docker start gitlab > /dev/null
+    spinner='/-\|'
+    n=${#spinner}
+    echo -n ' '
+    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+        printf '\b%s' "${spinner:i++%n:1}"
+        print_stacktrace_errors
+        sleep 1
+    done
+    printf '\b\b%s' " "
+    echo 'done'
 fi
 
 CURRENT_VERSION=$(docker exec gitlab dpkg -l | grep gitlab | awk '{ print $3 }')
-if [ -z $CURRENT_VERSION ]; then
+if [ -z "$CURRENT_VERSION" ]; then
     exit 1
 fi
 
