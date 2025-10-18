@@ -53,7 +53,7 @@ fi
 
 if [ $(docker ps | grep -c gitlab) -eq 0 ]; then
     if [ $(docker container ls -a | grep -c gitlab) -ne 0 ]; then
-        echo -n 'waiting GitLab server is back online... '
+        echo -n 'waiting until GitLab server is back online... '
         docker start gitlab > /dev/null
         spinner='/-\|'
         n=${#spinner}
