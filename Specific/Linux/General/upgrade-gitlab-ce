@@ -181,7 +181,7 @@ print_stacktrace_errors() {
             else
                 print_stacktrace_errors
             fi
-            echo "Successfully downgraded Gitlab server from $1 to $2"
+            echo "Successfully downgraded GitLab server from $1 to $2"
             echo 'please re-run this script to continue upgrade process. (recommends --all-tags flag enable)'
         else
             docker logs gitlab | $PAGER
@@ -604,7 +604,7 @@ elif [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.Rest
     docker update --restart=$auto_restart_enabled gitlab
 fi
 
-echo "Successfully updated Gitlab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
+echo "Successfully updated GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
 
 exit 0
