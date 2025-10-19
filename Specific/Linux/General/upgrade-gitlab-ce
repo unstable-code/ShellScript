@@ -124,6 +124,19 @@ PORTS=$(docker inspect gitlab --format='{{range $p, $conf := .HostConfig.PortBin
     | sed 's/\/tcp//g' \
     | awk -F: '{printf "-p %s:%s ", $2, $1}')
 
+check_gitlab_server_healthy() {
+    docker exec gitlab gitlab-ctl status
+    if [ $? -eq 0 ]; then
+        docker exec gitlab gitlab-ctl reconfigure
+        docker exec gitlab gitlab-ctl pg-upgrade
+        docker exec gitlab gitlab-rake db:migrate
+        docker exec gitlab gitlab-ctl restart
+        docker exec gitlab gitlab-ctl status || print_stacktrace_errors
+    else
+        print_stacktrace_errors
+    fi
+}
+
 print_stacktrace_errors() {
     if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
         echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
@@ -172,15 +185,7 @@ print_stacktrace_errors() {
             printf '\b\b%s' " "
             echo 'done'
 
-            docker exec gitlab gitlab-ctl status
-            if [ $? -eq 0 ]; then
-                docker exec gitlab gitlab-ctl reconfigure
-                docker exec gitlab gitlab-ctl pg-upgrade
-                docker exec gitlab gitlab-rake db:migrate
-                docker exec gitlab gitlab-ctl restart
-            else
-                print_stacktrace_errors
-            fi
+            check_gitlab_server_healthy
             echo "Successfully downgraded GitLab server from $1 to $2"
             echo 'please re-run this script to continue upgrade process.'
         else
@@ -514,14 +519,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         echo 'done'
     fi
 
-    docker exec gitlab gitlab-ctl status
-    if [ $? -eq 0 ]; then
-        docker exec gitlab gitlab-ctl reconfigure
-        docker exec gitlab gitlab-ctl pg-upgrade
-        docker exec gitlab gitlab-rake db:migrate
-    else
-        print_stacktrace_errors
-    fi
+    check_gitlab_server_healthy
 
     docker ps | grep gitlab &> /dev/null
     if [ $? -eq 0 ]; then
@@ -573,14 +571,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     index=$((index + 1))
 done
 
-docker exec gitlab gitlab-ctl status
-if [ $? -eq 0 ]; then
-    docker exec gitlab gitlab-ctl reconfigure
-    docker exec gitlab gitlab-ctl pg-upgrade
-    docker exec gitlab gitlab-rake db:migrate
-else
-    print_stacktrace_errors
-fi
+check_gitlab_server_healthy
 
 if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ] && [ "$auto_restart_enabled" == 'no' ]; then
     echo "would you like to change RestartPolicy from $auto_restart_enabled to always?"
