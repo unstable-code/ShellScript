@@ -52,7 +52,7 @@ else
                     echo "using $target_version_tag instead of latest"
                     extract_versions_only=0
                 else
-                    echo 'error: no such $target_version_tag tags in Docker Hub. using alternative tag: latest' >&2
+                    echo "error: no such $target_version_tag tags in Docker Hub. using alternative tag: latest" >&2
                     target_version_tag=
                 fi
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
