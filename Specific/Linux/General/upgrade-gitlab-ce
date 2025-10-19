@@ -182,12 +182,12 @@ print_stacktrace_errors() {
                 print_stacktrace_errors
             fi
             echo "Successfully downgraded GitLab server from $1 to $2"
-            echo 'please re-run this script to continue upgrade process. (recommends --all-tags flag enable)'
+            echo 'please re-run this script to continue upgrade process.'
         else
             docker logs gitlab | $PAGER
             docker run --rm -it --name gitlab-debug $VOLUMES $PORTS --entrypoint /bin/bash gitlab/gitlab-ce:$(docker container ls -a | grep gitlab | awk '{ print $2 }' | awk -F ':' '{ print $2 }')
 
-            echo 'please re-run this script to continue upgrade process.'
+            echo 'please re-run this script to continue upgrade process. (recommends --all-tags flag enable)'
         fi
         exit 1
     fi
