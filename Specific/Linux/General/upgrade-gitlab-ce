@@ -601,7 +601,7 @@ if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.Restar
     esac
 elif [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
     echo "update gitlab RestartPolicy $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled"
-    docker update --restart=$auto_restart_enabled gitlab
+    docker update --restart=$auto_restart_enabled gitlab &> /dev/null
 fi
 
 echo "Successfully updated GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
