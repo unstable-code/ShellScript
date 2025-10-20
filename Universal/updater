@@ -9,24 +9,27 @@ function gitUpdate() {
         repoName+=("Release/aptall")
     elif [ "$(uname -s)" == "Linux" ]; then
         repoName+=("Release/brewall" "Release/ArtDisplay")
+
+        if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
+            repoName+=("Release/Games/Diablo II Resurrected/seonhee")
+
+            repoName+=("Release/Games/World of Warcraft/macros")
+            repoName+=("Release/Games/World of Warcraft/WeakAuras")
+
+            repoName+=("Release/Games/World of Warcraft/AddOns/TalentSequence")
+            repoName+=("Release/Games/World of Warcraft/AddOns/WeaponSwingTimer")
+            repoName+=("Release/Games/World of Warcraft/AddOns/FlightTimerClassic")
+            repoName+=("Release/Games/World of Warcraft/AddOns/WhereToGatherClassic")
+        fi
     fi
 
-    # if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
-    #     repoName+=("...")
-    # fi
-
     for target in "${repoName[@]}"; do
-        if [ -d ~/Documents/$target ]; then
+        if [ -d "$HOME/Documents/$target" ]; then
             echo -e "\n\033[37mupdater: Updating repo ~/Documents/$target...\033[m"
-            cd ~/Documents/$target
-            git pull --rebase --stat origin $(git branch | sed '/* /!d' | sed 's/* //g')
+            cd "$HOME/Documents/$target"
+            git pull --rebase --stat origin $(git branch --show-current)
             if [ $? -ne 0 ]; then
                 git status
-            else
-                if [ $(git remote get-url origin | grep -c unstable-code) -ne 1 ]; then
-                    echo "updater: Updating remoteURL for $target"
-                    git remote set-url origin https://github.com/unstable-code/$(echo $target | sed 's/Release\///').git
-                fi
             fi
 
             cd - &>/dev/null
