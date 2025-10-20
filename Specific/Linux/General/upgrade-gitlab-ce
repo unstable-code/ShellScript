@@ -90,8 +90,13 @@ fi
 which docker &> /dev/null
 if [ $? -ne 0 ]; then
     echo "This system did not installed docker yet. $(uname -a)" >&2
-    echo 'Please install docker or Container Manager before running this script.' >&2
-    echo -e '\nref:\n\thttps://docs.docker.com/engine/install/\n\thttps://www.synology.com/dsm/feature/container-manager' >&2
+    if [ -d /usr/syno ]; then
+        echo 'Please install docker(Obsolete) or ContainerManager before running this script.' >&2
+        echo -e '\nref:\n\thttps://www.synology.com/dsm/feature/container-manager' >&2
+    else
+        echo 'Please install DockerEngine or DockerDesktop before running this script.' >&2
+        echo -e '\nref:\n\thttps://docs.docker.com/engine/install\n\thttps://docs.docker.com/desktop' >&2
+    fi
     exit 1
 fi
 
