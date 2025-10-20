@@ -2,7 +2,7 @@
 # gitlabhq 새 태그 감시 → Discord Embed 카드로 알림
 
 REPO_TAG_FEED="https://gitlab.com/gitlab-org/gitlab-foss/-/tags?format=atom"
-CACHE_FILE="$HOME/.last_gitlab_tags"
+CACHE_FILE="$HOME/.$(echo $DISCORD_URL | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
 DISCORD_URL="$DISCORD_URL"
 
 # 최근 1개 태그 추출
