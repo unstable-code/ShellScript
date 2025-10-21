@@ -1,7 +1,0 @@
-#!/bin/bash
-
-if [ $UID -ne 0 ]; then
-    sudo /usr/lib/vmware/bin/vmware-setup-helper -eoc yes
-else
-    /usr/lib/vmware/bin/vmware-setup-helper -eoc yes
-fi
