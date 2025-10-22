@@ -325,6 +325,11 @@ if [ "$use_local_versions" == '/dev/null' ]; then
         count=1
         mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
 
+        if [ ${#RAW_TAGS[@]} -lt 2 ]; then
+            echo 'error: unexpected EOF while parsing version tags' >&2
+            exit 1
+        fi
+
         ALL_TAGS=()
         for idx in "${!RAW_TAGS[@]}"; do
             tag="${RAW_TAGS[$idx]}"
