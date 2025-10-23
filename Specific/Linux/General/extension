@@ -97,10 +97,10 @@ fi
 #     fi
 # fi
 
-which eos-rankmirrors &> /dev/null
-if [ $? -eq 0 ]; then
-    sudo eos-rankmirrors
-fi
+# which eos-rankmirrors &> /dev/null
+# if [ $? -eq 0 ]; then
+#     sudo eos-rankmirrors
+# fi
 
 if [ "$USE_FULL_UPGRADE" == "true" ]; then
     which pip3 &>/dev/null
