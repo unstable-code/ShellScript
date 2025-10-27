@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.10160
+// @version      2025.10270
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -15,7 +15,7 @@
     function hideBotRows() {
         document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
             // tr 내부에 Bot 배지가 있는지 확인
-            const botBadge = tr.querySelector('div.gl-p-1 span.badge');
+            const botBadge = tr.querySelector('span.badge, span.gl-badge-content');
             if (botBadge && botBadge.textContent.trim() === 'Bot') {
                 tr.style.display = 'none';
             }
