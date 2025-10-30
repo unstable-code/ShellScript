@@ -482,6 +482,11 @@ fi
 echo -e "\nWould you like to upgrade GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}?"
 echo "This action can not be undo. PLEASE BACKUP gitlab drive BEFORE STARTING UPDATE..."
 echo "You should update pointing release either. ROUTING COUNT: ${#UPGRADE_POINTS_ARRAY[@]}"
+if [ ${#UPGRADE_POINTS_ARRAY[@]} -lt 10 ]; then
+    for idx in ${!UPGRADE_POINTS_ARRAY[@]}; do
+        echo -e "\t$(expr $idx + 1). ${UPGRADE_POINTS_ARRAY[$idx]}"
+    done
+fi
 if [ ${#UPGRADE_POINTS_ARRAY[@]} -le 5 ]; then
     echo -e "\ttraceroute: ${UPGRADE_POINTS_ARRAY[@]}"
 fi
