@@ -2,6 +2,11 @@
 
 launched=0
 spoofdpi_pid=0
+chrome_flags=
+
+if [ -r "$HOME/.config/chrome-flags.conf" ]; then
+    chrome_flags=$(grep -v '^\s*#' "$HOME/.config/chrome-flags.conf" | xargs)
+fi
 
 ps -ef | grep -v grep | grep spoofdpi &> /dev/null
 if [ $? -ne 0 ]; then
@@ -11,7 +16,7 @@ if [ $? -ne 0 ]; then
     launched=1
 fi
 
-flatpak run com.google.Chrome --incognito --proxy-server=127.0.0.1:12345 https://google.com &
+flatpak run com.google.Chrome --incognito --proxy-server=127.0.0.1:12345 https://google.com $chrome_flags &
 target_app_pid=$!
 
 if [ $launched -eq 1 ]; then
