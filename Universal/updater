@@ -45,14 +45,14 @@ function gitUpdate() {
 if [ "$SKIP_PACKAGE_UPDATER" == "true" ]; then
     gitUpdate
     if [ "$(uname -s)" == "Darwin" ]; then
-        if [ -x ~/Documents/Release/Shellscript/Operating\ System/macOS/Private/extension ]; then
-            ~/Documents/Release/Shellscript/Operating\ System/macOS/Private/extension
+        if [ -x ~/Documents/Release/ShellScript/Operating\ System/macOS/Private/extension ]; then
+            ~/Documents/Release/ShellScript/Operating\ System/macOS/Private/extension
         fi
     elif [ "$(uname -s)" == "Linux" ]; then
-        if [ -x ~/Documents/Release/Shellscript/Operating\ System/Linux/General/extension ]; then
-            ~/Documents/Release/Shellscript/Operating\ System/Linux/General/extension
-        elif [ -x ~/Documents/Release/Shellscript/Operating\ System/Linux/RaspberryPi/extension ]; then
-            ~/Documents/Release/Shellscript/Operating\ System/Linux/RaspberryPi/extension
+        if [ -x ~/Documents/Release/ShellScript/Operating\ System/Linux/General/extension ]; then
+            ~/Documents/Release/ShellScript/Operating\ System/Linux/General/extension
+        elif [ -x ~/Documents/Release/ShellScript/Operating\ System/Linux/RaspberryPi/extension ]; then
+            ~/Documents/Release/ShellScript/Operating\ System/Linux/RaspberryPi/extension
         fi
     fi
     echo -e '\a'
