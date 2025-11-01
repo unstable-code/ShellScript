@@ -55,7 +55,6 @@ if [ "$SKIP_PACKAGE_UPDATER" == "true" ]; then
             ~/Documents/Release/ShellScript/Operating\ System/Linux/RaspberryPi/extension
         fi
     fi
-    echo -e '\a'
     exit $exitCode
 fi
 
@@ -84,5 +83,4 @@ else
     exitCode=1
 fi
 
-echo -e '\a'
 exit $exitCode

@@ -111,6 +111,5 @@ if [ "$USE_FULL_UPGRADE" == "true" ]; then
             pip3 cache purge
         fi
     fi
-    echo -e "\n"
 fi
 
