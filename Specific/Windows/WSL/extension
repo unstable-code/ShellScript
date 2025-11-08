@@ -1,10 +1,5 @@
 #!/bin/bash
 
-which aptitude &>/dev/null
-if [ $? == 0 ]; then
-    sudo aptitude safe-upgrade
-fi
-
 if [ "$USE_FULL_UPGRADE" == "true" ]; then
     which pip3 &>/dev/null
     if [ $? == 0 ]; then

@@ -1,10 +1,5 @@
 #!/bin/bash
 
-which aptitude &>/dev/null
-if [ $? == 0 ]; then
-    sudo aptitude safe-upgrade
-fi
-
 which nvim &> /dev/null
 if [ $? -eq 0 ]; then
     nvim --version > /dev/null
