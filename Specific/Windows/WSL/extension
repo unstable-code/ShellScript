@@ -61,6 +61,12 @@ if [ $? -eq 0 ]; then
     juliaup update
 fi
 
+which docker &> /dev/null
+if [ $? -eq 0 ]; then
+    docker image prune -f
+    docker volume prune -f
+fi
+
 which zsh &>/dev/null
 if [ $? == 0 ]; then
     /bin/zsh -c "source ~/.zshrc; which omz > /dev/null 2>&1"
@@ -84,5 +90,6 @@ fi
 which flatpak &> /dev/null
 if [ $? -eq 0 ]; then
     flatpak update
+    flatpak uninstall --unused
 fi
 

@@ -63,6 +63,12 @@ if [ $? -eq 0 ]; then
     flatpak uninstall --unused
 fi
 
+which docker &> /dev/null
+if [ $? -eq 0 ]; then
+    docker image prune -f
+    docker volume prune -f
+fi
+
 if [ -x /usr/bin/vmplayer ]; then
     vm_count=$(ls /lib/modules/$(uname -r)/misc 2> /dev/null | grep -c 'vm')
     if [ $vm_count -ne 2 ]; then
