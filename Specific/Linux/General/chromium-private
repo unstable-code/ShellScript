@@ -10,7 +10,7 @@ fi
 
 ps -ef | grep -v grep | grep spoofdpi &> /dev/null
 if [ $? -ne 0 ]; then
-    spoofdpi --port=12345 &
+    spoofdpi --listen-port=12345 &
     spoofdpi_pid=$!
     sleep 5
     launched=1
