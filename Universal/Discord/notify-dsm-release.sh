@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 
 BASE_URL="https://archive.synology.com/download/Os/DSM"
-NAS_MODEL="${NAS_MODEL:-DS918+}"
+NAS_MODEL="$NAS_MODEL"
 DISCORD_URL="$DISCORD_URL"
 LOCK_FILE="$HOME/.$(echo $DISCORD_URL | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
+
+if [ -z "$DISCORD_URL" ]; then
+    echo 'Please set DISCORD_URL first.' >&2
+    exit 1
+fi
+
+if [ -z "$NAS_MODEL" ]; then
+    echo 'Please set NAS_MODEL first.' >&2
+    echo 'ex. `export NAS_MODEL=DS918+`' >&2
+    exit 1
+fi
 
 #####################################
 # 최신 DSM 버전 가져오기
@@ -74,15 +85,10 @@ JSON=$(jq -n \
 #####################################
 # Webhook 전송
 #####################################
-if [ -n "$DISCORD_URL" ]; then
-    curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "$JSON" \
-        "$DISCORD_URL"
-else
-    echo 'Please set DISCORD_URL first.' >&2
-    exit 1
-fi
+curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d "$JSON" \
+    "$DISCORD_URL"
 
 #####################################
 # Lock 파일 업데이트 (지원되는 경우만)
