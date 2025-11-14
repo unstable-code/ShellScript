@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 BASE_URL="https://archive.synology.com/download/Os/DSM"
-NAS_MODEL="$NAS_MODEL"
+NAS_MODEL="${NAS_MODEL:-$(cat /proc/sys/kernel/syno_hw_version)}"
 DISCORD_URL="$DISCORD_URL"
 LOCK_FILE="$HOME/.$(echo $DISCORD_URL | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
 
