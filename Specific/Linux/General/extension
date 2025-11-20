@@ -103,6 +103,10 @@ fi
 #     sudo eos-rankmirrors
 # fi
 
+if [ $(systemctl is-enabled chrome-mimetype-remove) ]; then
+    sudo systemctl start chrome-mimetype-remove
+fi
+
 if [ "$USE_FULL_UPGRADE" == "true" ]; then
     which pip3 &>/dev/null
     if [ $? == 0 ]; then
