@@ -1,0 +1,17 @@
+#!/bin/bash
+
+BROWSER=vivaldi-stable
+TARGET_BROWSER=$BROWSER.desktop
+
+if [ "$(xdg-mime query default text/html)" == $TARGET_BROWSER ]; then
+    echo "requirements already satisfied."
+    exit 0
+fi
+
+xdg-settings set default-web-browser $TARGET_BROWSER
+
+for mime in x-scheme-handler/http x-scheme-handler/https text/html; do
+    xdg-mime default $TARGET_BROWSER $mime
+done
+
+update-desktop-database
