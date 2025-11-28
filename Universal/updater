@@ -20,6 +20,7 @@ function gitUpdate() {
             repoName+=("Release/Games/World of Warcraft/AddOns/WeaponSwingTimer")
             repoName+=("Release/Games/World of Warcraft/AddOns/FlightTimerClassic")
             repoName+=("Release/Games/World of Warcraft/AddOns/WhereToGatherClassic")
+            repoName+=("Release/Games/World of Warcraft/AddOns/AddOnsUpdater")
         fi
     fi
 
