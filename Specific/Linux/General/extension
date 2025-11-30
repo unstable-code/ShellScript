@@ -101,3 +101,8 @@ if [ $(systemctl is-enabled --user chrome-mimetype-remove) ]; then
     systemctl start --user chrome-mimetype-remove
 fi
 
+which pip &> /dev/null
+if [ $? -eq 0 ]; then
+    echo 'Please use pip venv packages instead of global system pip'
+fi
+
