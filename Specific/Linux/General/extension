@@ -97,7 +97,7 @@ fi
 #     sudo eos-rankmirrors
 # fi
 
-if [ $(systemctl is-enabled chrome-mimetype-remove) ]; then
-    sudo systemctl start chrome-mimetype-remove
+if [ $(systemctl is-enabled --user chrome-mimetype-remove) ]; then
+    systemctl start --user chrome-mimetype-remove
 fi
 
