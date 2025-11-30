@@ -22,9 +22,12 @@ tree = app_commands.CommandTree(client)
 async def status(interaction: discord.Interaction):
     try:
         is_sway_running = subprocess.run(["pgrep", "-x", "swaylock"], stderr=subprocess.DEVNULL)
+        is_swaylock_running = subprocess.run(["pgrep", "-x", "swayidle"], stderr=subprocess.DEVNULL)
         if is_sway_running.returncode == 0:
             await interaction.response.send_message("⚠️ swaylock 실행에 실패했습니다. 이미 swaylock 이 실행 중입니다.", ephemeral=True)
         else:
+            if is_swaylock_running.returncode == 0:
+                subprocess.Popen([f"{os.environ.get('HOME')}/.config/sway/src/idle"], start_new_session=True)
             subprocess.Popen([f"{os.environ.get('HOME')}/.config/sway/src/backend", "lock_session"], start_new_session=True)
             await interaction.response.send_message("🔒 화면이 잠겼습니다 (swaylock 실행됨).", ephemeral=True)
     except FileNotFoundError:
