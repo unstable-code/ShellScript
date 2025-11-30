@@ -3,46 +3,82 @@
 target_path=
 target_name=
 inst_location=
+# Auto-detect unit type based on UID (0 = system, non-zero = user)
+if [ $UID -eq 0 ]; then
+    unit_type="system"
+else
+    unit_type="user"
+fi
 launch_date=$(date '+%Y-%m-%d_%H%M%S')
 window_type=
 
 if [ "$1" == "-h" -o "$1" == "--help" ]; then
-    echo "USAGE: $0 <systemd_unit_type <source|name> [destination]|option>"
+    echo "USAGE: $0 [option] <systemd_unit_type> <source|name> [destination]"
     echo ""
     echo "OPTION"
-    echo -e " -h, --help:\tprint this message"
+    echo -e " -h, --help:\t\tprint this message"
+    echo -e " -s, --system:\t\tforce install as system unit (requires root)"
     echo ""
-    echo "SUPPORTED TARGET"
-    echo "- service"
-    echo "- target"
-    echo "- device"
-    echo "- mount"
-    echo "- automount"
-    echo "- path"
-    echo "- socket"
-    echo "- timer"
+    echo "UNIT TYPE DETECTION"
+    echo "- Auto-detected based on user privileges:"
+    echo "  * root (UID=0): system unit"
+    echo "  * non-root: user unit"
+    echo "- Use --system to override and install as system unit"
+    echo ""
+    echo "SUPPORTED UNIT TYPES"
+    echo "- service, path, socket, timer (both system and user)"
+    echo "- target (system only)"
+    echo "- device, mount, automount (system only)"
     echo ""
     echo -e "DESTINATION\t\t\t\t\tPRI\tDEFAULT"
-    echo -e " 0, etc:\t/etc/systemd/system\t\t  5\t   *"
-    echo -e " 1, run:\t/run/systemd/system\t\t  0"
-    echo -e " 2, usr:\t/usr/lib/systemd/system\t\t-10"
-    echo -e " PATH\t\tcustom locations...\t\t 10"
+    echo -e " 0,   ~:\t~/.config/systemd/user\t\t  5\t   * (user)"
+    echo -e " 1, etc:\t/etc/systemd/UNIT\t\t  0\t   * (system)"
+    echo -e " 2, usr:\t/usr/lib/systemd/UNIT\t\t-10"
+    echo -e " PATH:\t\tcustom locations...\t\t 10"
+    echo ""
+    echo "Note: UNIT will be replaced with 'system' or 'user' based on detected/specified type"
     exit 0
-elif [ $# -lt 2 -o $# -gt 3 ]; then
+elif [ $# -lt 2 ]; then
     if [ $# -eq 0 ]; then
-        echo "This script does not configured default parameter type. please see \`--help\`" >&2
+        echo "This script does not have a configured default parameter type. Please see \`--help\`" >&2
     else
-        echo "unknown parameter type: $@. please see \`--help\`" >&2
+        echo "Unknown parameter type: $@. Please see \`--help\`" >&2
     fi
+    exit 1
+fi
+
+# Parse options
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -s|--system)
+            unit_type="system"
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ $# -lt 2 -o $# -gt 3 ]; then
+    echo "Invalid number of arguments. Please see \`--help\`" >&2
     exit 1
 fi
 
 case "$1" in
     "service"|"target"|"device"|"mount"|"automount"|"path"|"socket"|"timer")
-        echo "" &> /dev/null
+        # Check if unit type is supported for user units
+        if [ "$unit_type" == "user" ]; then
+            case "$1" in
+                "device"|"mount"|"automount")
+                    echo "Error: $1 units are not supported for user units" >&2
+                    exit 1
+                    ;;
+            esac
+        fi
         ;;
     *)
-        echo "error: unable to convert $(basename "$2").$1 to systemd unit type. please see \`--help\`" >&2
+        echo "Error: unable to convert $(basename "$2").$1 to systemd unit type. Please see \`--help\`" >&2
         exit 1
         ;;
 esac
@@ -55,59 +91,65 @@ else
 fi
 
 if [ $# -eq 2 ]; then
-    echo "This script will create $target_name.$1 to /etc/systemd/system"
+    # Set default location based on unit_type
+    if [ "$unit_type" == "user" ]; then
+        inst_location="$HOME/.config/systemd/user"
+    else
+        inst_location="/etc/systemd/system"
+    fi
+    echo "This script will create $target_name.$1 in $inst_location"
     if ! [ x"$target_path" == x ]; then
         file "$target_path" 2> /dev/null
         xxd -l 64 "$target_path"
     fi
 
-    if [ -r /etc/systemd/system/$target_name.$1 ]; then
-        echo "systemd-inst: error: $target_name.$1 already exist in /etc/systemd/system" >&2
+    if [ -r "$inst_location/$target_name.$1" ]; then
+        echo "systemd-inst: error: $target_name.$1 already exists in $inst_location" >&2
         exit 1
     fi
 elif [ $# -eq 3 ]; then
     case "$3" in
-        "0"|"etc")
-            inst_location=/etc/systemd/system
+        "0"|"~")
+            inst_location="$HOME/.config/systemd/user"
         ;;
-        "1"|"run")
-            inst_location=/run/systemd/system
+        "1"|"etc")
+            inst_location="/etc/systemd/$unit_type"
         ;;
         "2"|"usr")
-            inst_location=/usr/lib/systemd/system
+            inst_location="/usr/lib/systemd/$unit_type"
         ;;
         *)
-            if ! [ -r "$3" ]; then
-                echo "systemd-inst: cannot access '$3': no such file or directory." >&2
+            if ! [ -d "$3" ]; then
+                echo "systemd-inst: cannot access '$3': no such directory" >&2
                 exit 1
             fi
 
             inst_location=$(realpath "$3")
         ;;
     esac
-    echo "This script will create $target_name.$1 to $inst_location"
+    echo "This script will create $target_name.$1 in $inst_location"
     if ! [ x"$target_path" == x ]; then
         file "$target_path" 2> /dev/null
         xxd -l 64 "$target_path"
     fi
 
-    if [ -r /etc/systemd/system/$target_name.$1 ]; then
-        echo "systemd-inst: error: $target_name.$1 already exist in /etc/systemd/system" >&2
+    if [ -r "$inst_location/$target_name.$1" ]; then
+        echo "systemd-inst: error: $target_name.$1 already exists in $inst_location" >&2
         exit 1
     fi
 fi
 
 systemctl --quiet is-enabled $target_name.$1
 if [ $? -eq 4 ]; then
-    echo -n "Are you wish to continue install $1? (y/N) > "
+    echo -n "Do you wish to continue installing $1? (y/N) > "
     read n
 else
-    echo "Unit $target_name.$1 is already exist. Using systemctl function."
+    echo "Unit $target_name.$1 already exists. Using systemctl function."
     sudo systemctl edit $target_name.$1
     exit $?
 fi
 if ! [ "$n" == "Y" -o "$n" == "y" ]; then
-    echo "Abort."
+    echo "Aborted."
     exit 1
 fi
 
@@ -128,26 +170,30 @@ fi
 echo -n "Please type description: "
 read desc
 
-case $1 in
-    "service"|"target"|"mount"|"path"|"automount")
-        echo -n "This $target_name.$1 requires GUI (y/N) > "
-        read n
-        if [ "$n" == "y" -o "$n" == "Y" ]; then
-            window_type="graphical.target"
-        else
-            window_type="multi-user.target"
-        fi
-    ;;
-esac
+if [ "$unit_type" == "system" ]; then
+    case $1 in
+        "service"|"target"|"mount"|"path"|"automount")
+            echo -n "Does this $target_name.$1 require GUI? (y/N) > "
+            read n
+            if [ "$n" == "y" -o "$n" == "Y" ]; then
+                window_type="graphical.target"
+            else
+                window_type="multi-user.target"
+            fi
+        ;;
+    esac
+fi
 
 echo "# Generated by systemd-inst., Copyright (c) $(date +'%Y') unstable-code." > /tmp/systemd-inst-$launch_date
-echo "# For more infomation $1 syntax, follow this url: https://www.freedesktop.org/software/systemd/man/devel/systemd.$1.html" >> /tmp/systemd-inst-$launch_date
+echo "# For more information about $1 syntax, follow this URL: https://www.freedesktop.org/software/systemd/man/devel/systemd.$1.html" >> /tmp/systemd-inst-$launch_date
 echo "" >> /tmp/systemd-inst-$launch_date
 echo "[Unit]" >> /tmp/systemd-inst-$launch_date
 echo "Description=$desc" >> /tmp/systemd-inst-$launch_date
-echo "# Uncomment lines below if your program should access internet" >> /tmp/systemd-inst-$launch_date
-echo "# Requires=network-online.target" >> /tmp/systemd-inst-$launch_date
-echo "# After=network.target" >> /tmp/systemd-inst-$launch_date
+if [ "$unit_type" == "system" ]; then
+    echo "# Uncomment lines below if your program requires internet access" >> /tmp/systemd-inst-$launch_date
+    echo "# Requires=network-online.target" >> /tmp/systemd-inst-$launch_date
+    echo "# After=network.target" >> /tmp/systemd-inst-$launch_date
+fi
 echo "" >> /tmp/systemd-inst-$launch_date
 
 case $1 in
@@ -203,9 +249,13 @@ echo "" >> /tmp/systemd-inst-$launch_date
 case $1 in
     "service"|"target"|"mount"|"path"|"automount")
         echo "[Install]" >> /tmp/systemd-inst-$launch_date
-        echo "WantedBy=$window_type" >> /tmp/systemd-inst-$launch_date
-        echo "# Uncomment lines below if your program should access third-party daemons" >> /tmp/systemd-inst-$launch_date
-        echo "# RequiredBy=" >> /tmp/systemd-inst-$launch_date
+        if [ "$unit_type" == "user" ]; then
+            echo "WantedBy=default.target" >> /tmp/systemd-inst-$launch_date
+        else
+            echo "WantedBy=$window_type" >> /tmp/systemd-inst-$launch_date
+            echo "# Uncomment lines below if your program requires third-party daemons" >> /tmp/systemd-inst-$launch_date
+            echo "# RequiredBy=" >> /tmp/systemd-inst-$launch_date
+        fi
     ;;
     "socket")
         echo "[Install]" >> /tmp/systemd-inst-$launch_date
@@ -218,7 +268,7 @@ case $1 in
 esac
 
 if ! [ x$target_path == x ]; then
-    echo -n "Would you like edit your $target_name.$1 config file? (y/N) > "
+    echo -n "Would you like to edit your $target_name.$1 config file? (y/N) > "
     read n
 else
     n=y
@@ -230,38 +280,59 @@ if [ "$n" == "y" -o "$n" == "Y" ]; then
     if [ $? -eq 0 ]; then
         rm /tmp/systemd-inst-$launch_date
         rm /tmp/systemd-inst-$launch_date.bak
-        echo 'Abort.'
+        echo 'Aborted.'
         exit 1
     else
         rm /tmp/systemd-inst-$launch_date.bak
     fi
 fi
 
-if [ $# -eq 2 ]; then
-    echo "Installing /etc/systemd/system/$target_name.$1..."
-    sudo mv /tmp/systemd-inst-$launch_date "/etc/systemd/system/$target_name.$1"
-elif [ $# -eq 3 ]; then
-    echo "Installing $inst_location/$target_name.$1..."
+echo "Installing $inst_location/$target_name.$1..."
+
+# Create directory if it doesn't exist (especially for user units)
+if ! [ -d "$inst_location" ]; then
+    mkdir -p "$inst_location"
+fi
+
+if [ "$unit_type" == "user" ]; then
+    mv /tmp/systemd-inst-$launch_date "$inst_location/$target_name.$1"
+else
     sudo mv /tmp/systemd-inst-$launch_date "$inst_location/$target_name.$1"
 fi
 
 if [ -r /tmp/systemd-inst-$launch_date ]; then
-    echo "The $target_name.$1 installation process might failed or corrupted." >&2
+    echo "The $target_name.$1 installation process might have failed or is corrupted." >&2
     rm /tmp/systemd-inst-$launch_date
     exit 1
 fi
 
-systemctl status $target_name
-echo -n "Would you like enable your $target_name.$1? (Y/n) > "
-read n
-if ! [ "$n" == "N" -o "$n" == "n" ]; then
-    sudo systemctl enable $target_name.$1
-fi
+if [ "$unit_type" == "user" ]; then
+    systemctl --user status $target_name
+    echo -n "Would you like to enable your $target_name.$1? (Y/n) > "
+    read n
+    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+        systemctl --user enable $target_name.$1
+    fi
 
-echo -n "Would you like start your $target_name.$1? (Y/n) > "
-read n
-if ! [ "$n" == "N" -o "$n" == "n" ]; then
-    sudo systemctl start $target_name.$1
+    echo -n "Would you like to start your $target_name.$1? (Y/n) > "
+    read n
+    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+        systemctl --user start $target_name.$1
+    fi
+    systemctl --user status $target_name.$1
+else
+    systemctl status $target_name
+    echo -n "Would you like to enable your $target_name.$1? (Y/n) > "
+    read n
+    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+        sudo systemctl enable $target_name.$1
+    fi
+
+    echo -n "Would you like to start your $target_name.$1? (Y/n) > "
+    read n
+    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+        sudo systemctl start $target_name.$1
+    fi
+    systemctl status $target_name.$1
 fi
-systemctl status $target_name.$1
 
