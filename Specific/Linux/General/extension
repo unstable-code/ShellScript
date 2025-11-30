@@ -51,12 +51,6 @@ if [ $? == 0 ]; then
     fi
 fi
 
-which flutter &>/dev/null
-if [ $? == 0 ]; then
-    flutter upgrade
-    flutter doctor
-fi
-
 which flatpak &> /dev/null
 if [ $? -eq 0 ]; then
     flatpak update -y
@@ -105,16 +99,5 @@ fi
 
 if [ $(systemctl is-enabled chrome-mimetype-remove) ]; then
     sudo systemctl start chrome-mimetype-remove
-fi
-
-if [ "$USE_FULL_UPGRADE" == "true" ]; then
-    which pip3 &>/dev/null
-    if [ $? == 0 ]; then
-        python3 -m pip config set global.break-system-packages true
-        if [ $? -eq 0 ]; then
-            pip3 list --format=freeze | awk -F"==" '{print $1}' | xargs -i pip3 install -U {}
-            pip3 cache purge
-        fi
-    fi
 fi
 

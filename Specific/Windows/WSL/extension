@@ -1,24 +1,5 @@
 #!/bin/bash
 
-if [ "$USE_FULL_UPGRADE" == "true" ]; then
-    which pip3 &>/dev/null
-    if [ $? == 0 ]; then
-        python3 -m pip config set global.break-system-packages true
-        if [ $? -eq 0 ]; then
-            pip3 list --format=freeze | awk -F"==" '{print $1}' | xargs -i pip3 install -U {}
-            pip3 cache purge
-        fi
-    fi
-
-    which pip3.exe &>/dev/null
-    if [ $? == 0 ]; then
-        pip3.exe list --format=freeze | awk -F"==" '{print $1}' | xargs -i pip3.exe install -U {}
-        python.exe -m pip install -U pip
-        pip3.exe cache purge
-    fi
-    echo -e "\n"
-fi
-
 which nvim &> /dev/null
 if [ $? -eq 0 ]; then
     nvim --version > /dev/null
