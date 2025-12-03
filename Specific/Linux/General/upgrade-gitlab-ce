@@ -494,15 +494,24 @@ if [ $use_all_tags -eq 0 ]; then
     echo "Follow this link to get more infomations: https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/?current=$(echo $CURRENT_VERSION | sed 's/-ce.0//')&target=$(echo ${UPGRADE_POINTS_ARRAY[-1]} | sed 's/-ce.0//')&distro=docker"
 fi
 echo ''
-echo -e "\t1. I understood which this action DID NOT SUPPORTed rollback"
-echo -e "\t2. I understood which this action did not end shortly cuz ROUTING COUNT reason."
-echo -e "\t3. I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
-echo -e "\t4. I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
-echo -e "\t5. I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
-if [ $use_all_tags -eq 0 ]; then
-    echo -e "\t6. I checked TARGET_URL is valid: $TARGET_URL"
+echo -e "\t- I understood which this action DID NOT SUPPORTed rollback"
+echo -e "\t- I understood which this action did not end shortly cuz ROUTING COUNT reason."
+echo -e "\t- I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
+echo -e "\t- I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
+echo -e "\t- I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
+echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec gitlab grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
+if [ $(docker exec gitlab gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
+    echo -e "\t- I checked this gitlab server does not configured any runners yet."
 else
-    echo -e "\t6. I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
+    echo ''
+    echo -e "\t- I checked this gitlab server was configured by following runners:"
+    docker exec gitlab gitlab-psql -c "SELECT id, description, contacted_at, active FROM ci_runners ORDER BY id;"
+    echo ''
+fi
+if [ $use_all_tags -eq 0 ]; then
+    echo -e "\t- I checked TARGET_URL is valid: $TARGET_URL"
+else
+    echo -e "\t- I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
 fi
 
 echo -en "\nI accepted above notice and continue this job (y/N) > "
