@@ -79,3 +79,15 @@ if [ $? -eq 0 ]; then
     echo 'Please use pip venv packages instead of global system pip'
 fi
 
+find ~/.venv -maxdepth 1 -type d | while read venv; do
+    if [ -x "$venv/bin/pip" ]; then
+        echo "Updating manually installed packages in: $venv"
+
+        "$venv/bin/python" -m pip install -U pip
+        "$venv/bin/pip" list --not-required --format=freeze \
+          | grep -v 'pip==' \
+          | cut -d= -f1 \
+          | xargs -I {} "$venv/bin/pip" install -U {}
+    fi
+done
+
