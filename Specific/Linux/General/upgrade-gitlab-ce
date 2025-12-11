@@ -497,7 +497,7 @@ echo ''
 echo -e "\t- I understood which this action DID NOT SUPPORTed rollback"
 echo -e "\t- I understood which this action did not end shortly cuz ROUTING COUNT reason."
 echo -e "\t- I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
-echo -e "\t- I checked container PORTS: $(docker ps --format='{{.Names}} {{.Ports}}' | grep gitlab | sed 's/gitlab //')"
+echo -e "\t- I checked container PORTS: $(docker inspect gitlab --format='{{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostPort}} {{end}}')"
 echo -e "\t- I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
 echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec gitlab grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
 if [ $(docker exec gitlab gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
