@@ -8,11 +8,19 @@ if [ $? -eq 0 ]; then
         echo 'Please re-install neovim in below link.'
         echo -e "\thttps://github.com/neovim/neovim/releases/latest"
     else
-        local=$(nvim --version | grep NVIM | awk '{ print $2 }')
-        release=$(curl -fsSL https://github.com/neovim/neovim/releases/latest | grep '<title>' | awk '{ print $3 }')
-        if [ "$local" != "$release" ]; then
-            echo 'Please download neovim in below link.'
-            echo -e "\thttps://github.com/neovim/neovim/releases/latest"
+        local=$(nvim --version | grep NVIM | cut -d- -f1 | sed 's/NVIM v//')
+        release=$(curl -fsSL https://github.com/neovim/neovim/releases/latest | grep '<title>' | awk '{ print $3  }')
+        dpkg --compare-versions "$local" lt "$release"
+        if [ $? -eq 0 ]; then
+            if [ -d ~/snap/neovim ]; then
+                cd ~/snap/neovim
+                git pull --rebase origin $(git branch --show-current)
+                make CMAKE_BUILD_TYPE=Release
+                sudo make install
+            else
+                echo 'Please download neovim in below link.'
+                echo -e "\thttps://github.com/neovim/neovim/releases/latest"
+            fi
         else
             echo "Neovim is up to date ($local)."
         fi

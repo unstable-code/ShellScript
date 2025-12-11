@@ -10,10 +10,11 @@ if [ $? -eq 0 ]; then
     else
         local=$(nvim --version | grep NVIM | awk '{ print $2 }' | awk -F '-' '{ print $1 }')
         release=$(curl -fsSL https://github.com/neovim/neovim/releases/latest | grep 'css-truncate css-truncate-target' | awk -F '/' '{ print $5 }' | cut -d\" -f1)
-        if [ "$local" != "$release" ]; then
+        target=$(vercmp $local $release)
+        if [ $target -lt 0 ]; then
             if [ -d ~/snap/neovim ]; then
                 cd ~/snap/neovim
-                git pull --rebase origin $(git branch | sed '/* /!d' | sed 's/* //g')
+                git pull --rebase origin $(git branch --show-current)
                 make CMAKE_BUILD_TYPE=Release
                 sudo make install
             else
