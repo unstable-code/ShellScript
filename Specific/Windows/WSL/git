@@ -12,14 +12,14 @@ if [ $? -ne 0 ]; then
             if [ $? -eq 0 ]; then
                 exit 1
             else
-                /usr/bin/git $@
+                /usr/bin/git "$@"
             fi
         fi
     elif [ "$target" == "gpg" ]; then
         if [ -x /usr/bin/gpg ]; then
             /usr/bin/gpg --version | grep Home | awk -F ': ' '{ print $2 }' | grep -vE '^/c/Users/'
             if [ $? -eq 0 ]; then
-                /usr/bin/gpg $@
+                /usr/bin/gpg "$@"
             else
                 exit 1
             fi
@@ -31,7 +31,7 @@ else
         if [ -x /usr/bin/git_win ]; then
             /usr/bin/git_win --version | grep "windows" &> /dev/null
             if [ $? -eq 0 ]; then
-                /usr/bin/git_win $@
+                /usr/bin/git_win "$@"
             else
                 exit 1
             fi
@@ -41,7 +41,7 @@ else
             /usr/bin/gpg_win --version | grep Home | awk -F ': ' '{ print $2 }' | grep -E '^/c/Users/'
             if [ $? -eq 0 ]; then
                 /mnt/c/Program\ Files/Git/git-bash.exe -c "gpg $@"
-                /usr/bin/gpg_win $@
+                /usr/bin/gpg_win "$@"
             else
                 exit 1
             fi
