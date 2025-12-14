@@ -36,13 +36,9 @@ fi
 
 which winget.exe &>/dev/null
 if [ $? == 0 ]; then
-  #     cmd.exe "/c" "winget.exe upgrade --all"
+#   cmd.exe "/c" "winget.exe upgrade --all"
     cmd.exe "/c" "winget.exe upgrade"
     echo -e "\e[m"
-fi
-
-if [ -x ~/.local/bin/gitVI_update ]; then
-    ~/.local/bin/gitVI_update
 fi
 
 which juliaup &> /dev/null
@@ -84,7 +80,10 @@ fi
 
 which pip &> /dev/null
 if [ $? -eq 0 ]; then
-    echo 'Please use pip venv packages instead of global system pip'
+    which deactivate &> /dev/null
+    if [ $? -ne 0 ]; then
+        echo 'Please use pip venv packages instead of global system pip'
+    fi
 fi
 
 find ~/.venv -maxdepth 1 -type d | while read venv; do
