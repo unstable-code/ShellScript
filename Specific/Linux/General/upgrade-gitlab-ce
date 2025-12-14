@@ -210,7 +210,7 @@ print_stacktrace_errors() {
     fi
 }
 
-if [ $(docker ps --format "{{.Names}}" | grep -q '^gitlab$') -eq 0 ]; then
+if ! docker ps --format "{{.Names}}" | grep -q '^gitlab$'; then
     echo -n 'waiting until GitLab server is back to online... '
     docker start gitlab > /dev/null
     spinner='/-\|'
