@@ -2,6 +2,7 @@
 
 PAGE_SIZE=${PAGE_SIZE:-25}
 BACKUP_DIR=
+DISCORD_URL=${DISCORD_URL}
 
 use_local_versions=/dev/null
 extract_versions_only=0
@@ -19,11 +20,13 @@ if [ "$1" == "--help" -o "$1" == "help" ]; then
     echo -e "--all-tags\t\tparsing all supported in Docker Hub instead of GitLab upgrade-path site."
     echo -e "--version=0.0.0\t\tusing provided tags instead of latest tag."
     echo -e "--target-url=http\tA simple connection test for your GitLab server."
+    echo -e "--discord-url=http\tnotify with discord webhook"
     echo -e "--page-size=25\t\thow many spolling amount each page with --all-tags flags."
     echo -e "FILE\t\t\tusing provided file with already ASC sorted contents"
 
     echo -e '\n\e[0;1mENV VALUES\e[m'
-    echo -e "TARGET_URL\t\tsame as --target-url flags"
+    echo -e "TARGET_URL=http\t\tsame as --target-url flags"
+    echo -e "DISCORD_URL=http\tsame as --discord-url flags"
     echo -e "PAGE_SIZE=25\t\tsame as --page-size flags"
     exit 0
 else
@@ -61,6 +64,11 @@ else
                     echo "warn: overriding TARGET_URL from $TARGET_URL to $temp"
                 fi
                 TARGET_URL=$temp
+            elif [[ "${params[$i]}" == "--discord-url"* ]]; then
+                if [ -n "$DISCORD_URL" ]; then
+                    echo "warn: overriding TARGET_URL from $DISCORD_URL to $temp"
+                fi
+                DISCORD_URL=$temp
             elif [[ "${params[$i]}" == "--page-size"* ]]; then
                 if [ -n "$PAGE_SIZE" ]; then
                     echo "warn: overriding PAGE_SIZE from $PAGE_SIZE to $temp"
@@ -130,6 +138,52 @@ PORTS=$(docker inspect gitlab --format='{{range $p, $conf := .HostConfig.PortBin
     | sed 's/\/tcp//g' \
     | awk -F: '{printf "-p %s:%s ", $2, $1}')
 
+send_discord_webhook() {
+    if [ -z "$DISCORD_URL" -o $# -ne 3 ]; then
+        return 1
+    fi
+
+    format_title=
+    hex_color=
+    if [ "$1" == "ERR" ]; then
+        hex_color=15158332 #빨강
+        format_title="🛑 $2"
+    elif [ "$1" == "WARN" ]; then
+        hex_color=15904252 #주황
+        format_title="⚠️ $2"
+    elif [ "$1" == "NOTE" ]; then
+        hex_color=3447003  #파랑
+        format_title="🔔 $2"
+    elif [ "$1" == "INFO" ]; then
+        format_title="ℹ️ $2"
+        hex_color=3066993  #초록
+    else
+        return 1
+    fi
+
+
+    JSON_PAYLOAD=$(jq -n \
+        --arg title "$format_title" \
+        --arg description "$3" \
+        --argjson color "$hex_color" \
+        '{
+            "embeds": [{
+                "title": $title,
+                "color": $color,
+                "fields": [
+                    {"name": "Description", "value": $description, "inline": false}
+                ],
+                "footer": {"text": "GitLab upgrade helper"},
+                "timestamp": (now | todate)
+            }]
+        }'
+    )
+    curl -s -H "Content-Type: application/json" \
+        -X POST \
+        -d "$JSON_PAYLOAD" \
+        "$DISCORD_URL" > /dev/null
+}
+
 check_gitlab_server_healthy() {
     docker exec gitlab gitlab-ctl status
     if [ $? -eq 0 ]; then
@@ -150,6 +204,7 @@ print_stacktrace_errors() {
         if [ $# -eq 2 ]; then
             # 업그레이드에 실패했으나 다운그레이드가 가능할 경우
             echo "An error occurred while installing $1. will trying to rollback with following previous version: $2." >&2
+            send_discord_webhook "ERR" "Installation was rejected" "$1 was died with non-zero exit code. rollback to $2"
 
             docker ps --format "{{.Names}}" | grep -q '^gitlab$'
             if [ $? -eq 0 ]; then
@@ -195,12 +250,13 @@ print_stacktrace_errors() {
             check_gitlab_server_healthy
             echo "Successfully downgraded GitLab server from $1 to $2"
             echo 'please re-run this script to continue upgrade process.'
+            send_discord_webhook "NOTE" "successfully downgraded $2" ""
             touch /tmp/upgrade-gitlab-ce.lock
             exit 2
         else
             # 업그레이드 및 다운그레이드 모두 실패시
             docker logs --tail 200 gitlab >&2
-
+            send_discord_webhook "ERR" "FATAL ERROR occurred!" "see: https://docs.gitlab.com/administration/backup_restore"
             echo -e '\e[1;5;37;41mFATAL ERROR: MANUAL INTERVENTION IS REQUIRED\e[0m' >&2
             echo 'upgrade-gitlab-ce script does not recover this issue. please restore previous backup with `gitlab-rake gitlab:backup:restore`' >&2
             echo 'for more infomations please visit: https://docs.gitlab.com/administration/backup_restore' >&2
@@ -529,6 +585,7 @@ if ! [ "$n" == "y" -o "$n" == "Y" ]; then
     exit 1
 fi
 
+send_discord_webhook "NOTE" "Updating GitLab now!" "GitLab will be upgrade $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)
 
 if ! [ -r /tmp/upgrade-gitlab-ce.lock ]; then
@@ -542,6 +599,7 @@ fi
 index=1
 CNT_VERSION=$CURRENT_VERSION
 for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
+    send_discord_webhook "INFO" "GitLab server is growing now! ($index/${#UPGRADE_POINTS_ARRAY[@]})" "Please wait until upgrading process is done."
     echo "updating $CNT_VERSION to $ver... ($index/${#UPGRADE_POINTS_ARRAY[@]})"
     docker ps --format "{{.Names}}" | grep -q '^gitlab$'
     if [ $? -ne 0 ]; then
@@ -606,6 +664,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
     else
         echo "gitlab-ce $ver update completed."
+        send_discord_webhook "NOTE" "Upgrade process now completed!" "Please wait until GitLab server is ready."
     fi
     CNT_VERSION=$ver
     index=$((index + 1))
@@ -637,6 +696,7 @@ fi
 
 echo "Successfully updated GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
+send_discord_webhook "NOTE" "Successfully upgrade GitLab server!" "GitLab version changed $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 rm /tmp/upgrade-gitlab-ce.lock 2> /dev/null
 
 exit 0
