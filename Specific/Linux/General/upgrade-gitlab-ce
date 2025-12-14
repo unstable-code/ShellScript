@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 PAGE_SIZE=${PAGE_SIZE:-25}
+BACKUP_DIR=
 
 use_local_versions=/dev/null
 extract_versions_only=0
@@ -147,7 +148,8 @@ print_stacktrace_errors() {
         echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
 
         if [ $# -eq 2 ]; then
-            echo "An error occurred while installing $1. will trying to rollback with following previous version: $2."
+            # 업그레이드에 실패했으나 다운그레이드가 가능할 경우
+            echo "An error occurred while installing $1. will trying to rollback with following previous version: $2." >&2
 
             docker ps | grep gitlab &> /dev/null
             if [ $? -eq 0 ]; then
@@ -193,13 +195,19 @@ print_stacktrace_errors() {
             check_gitlab_server_healthy
             echo "Successfully downgraded GitLab server from $1 to $2"
             echo 'please re-run this script to continue upgrade process.'
+            touch /tmp/upgrade-gitlab-ce.lock
+            exit 2
         else
-            docker logs gitlab | $PAGER
+            # 업그레이드 및 다운그레이드 모두 실패시
+            docker logs --tail 200 gitlab >&2
             docker run --rm -it --name gitlab-debug $VOLUMES $PORTS --entrypoint /bin/bash gitlab/gitlab-ce:$(docker container ls -a | grep gitlab | awk '{ print $2 }' | awk -F ':' '{ print $2 }')
 
-            echo 'please re-run this script to continue upgrade process. (recommends --all-tags flag enable)'
+            echo -e '\e[1;5;37;41mFATAL ERROR: MANUAL INTERVENTION IS REQUIRED\e[0m' >&2
+            echo 'upgrade-gitlab-ce script does not recover this issue. please restore previous backup with `gitlab-rake gitlab:backup:restore`' >&2
+            echo 'for more infomations please visit: https://docs.gitlab.com/administration/backup_restore' >&2
+            echo "backup_path: $BACKUP_DIR" >&2
+            exit 1
         fi
-        exit 1
     fi
 }
 
@@ -500,6 +508,7 @@ echo -e "\t- I checked container restart policy: $(docker inspect --format='{{.H
 echo -e "\t- I checked container PORTS: $(docker inspect gitlab --format='{{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostPort}} {{end}}')"
 echo -e "\t- I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
 echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec gitlab grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
+echo -e "\t- I checked gitlab backup_path in gitlab.rb file: $(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{print $2}' | sed 's/\"//g' | sed 's/^ //')"
 if [ $(docker exec gitlab gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
     echo -e "\t- I checked this gitlab server does not configured any runners yet."
 else
@@ -522,6 +531,14 @@ if ! [ "$n" == "y" -o "$n" == "Y" ]; then
 fi
 
 auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)
+
+if ! [ -r /tmp/upgrade-gitlab-ce.lock ]; then
+    echo "Creating backups for $CNT_VERSION. please wait until backup process is completed..."
+    docker exec gitlab gitlab-backup create
+    BACKUP_DIR=$(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{ print $2 }' | sed 's/\"//g')
+    docker exec gitlab sh -c "cp /etc/gitlab/gitlab-secrets.json $BACKUP_DIR/gitlab-secrets.json.${CNT_VERSION}-backup"
+    docker exec gitlab sh -c "cp /etc/gitlab/gitlab.rb $BACKUP_DIR/gitlab.rb.${CNT_VERSION}-backup"
+fi
 
 index=1
 CNT_VERSION=$CURRENT_VERSION
@@ -621,5 +638,6 @@ fi
 
 echo "Successfully updated GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
+rm /tmp/upgrade-gitlab-ce.lock 2> /dev/null
 
 exit 0
