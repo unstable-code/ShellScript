@@ -113,3 +113,13 @@ find ~/.venv -maxdepth 1 -type d | while read venv; do
     fi
 done
 
+which claude &> /dev/null
+if [ $? -eq 0 ]; then
+    claude update
+    #npm install -g @anthropic-ai/claude-code@latest
+fi
+
+which gemini &> /dev/null
+if [ $? -eq 0 ]; then
+    npm install -g @google/gemini-cli@latest
+fi
