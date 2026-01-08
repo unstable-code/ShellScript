@@ -6,10 +6,15 @@ settings = {
     message_text = "🎬 OBS 녹화가 종료되었습니다!",
 }
 
+-- 녹화 시작 시 저장할 정보
+recording_info = {
+    title = nil,
+}
+
 -----------------------------------------------------------
 -- 설명
 function script_description()
-    return "녹화 종료 시 디스코드에 메시지를 전송합니다.\n테스트 버튼으로 확인도 가능합니다."
+    return "녹화 종료 시 디스코드에 메시지를 전송합니다.\n녹화 시작 시 playerctl의 미디어 제목을 저장하여 종료 메시지에 포함합니다.\n테스트 버튼으로 확인도 가능합니다."
 end
 
 -- 사용자 설정 UI
@@ -31,10 +36,35 @@ function script_update(settings_ref)
     settings.message_text = (settings.message_text ~= nil and settings.message_text ~= "") and settings.message_text or "🎬 OBS 녹화가 종료되었습니다!"
 end
 
--- 녹화 종료 감지
+-- playerctl에서 현재 재생 중인 미디어 제목 가져오기
+function get_playerctl_title()
+    local handle = io.popen("playerctl metadata title 2>/dev/null")
+    if handle then
+        local result = handle:read("*a")
+        handle:close()
+        if result and result ~= "" then
+            return result:gsub("%s+$", "") -- 후행 공백/개행 제거
+        end
+    end
+    return nil
+end
+
+-- 녹화 시작/종료 감지
 function on_event(event)
-    if event == obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED then
-        send_discord_notification(settings.message_text)
+    if event == obs.OBS_FRONTEND_EVENT_RECORDING_STARTED then
+        recording_info.title = get_playerctl_title()
+        if recording_info.title then
+            print("[OBS Discord Notify] 녹화 시작 - 저장된 제목: " .. recording_info.title)
+        else
+            print("[OBS Discord Notify] 녹화 시작 - 재생 중인 미디어 없음")
+        end
+    elseif event == obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED then
+        local message = settings.message_text
+        if recording_info.title then
+            message = message .. "\n📺 " .. recording_info.title
+        end
+        send_discord_notification(message)
+        recording_info.title = nil -- 초기화
     end
 end
 
