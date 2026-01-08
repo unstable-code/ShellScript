@@ -70,7 +70,7 @@ end
 -- 메시지 전송 함수 (Discord Embed 형식)
 function send_discord_notification(title, description)
     if settings.webhook_url == "" then
-        print("[OBS Discord Notify] 웹훅 URL이 비어 있습니다.")
+        print("웹훅 URL이 비어 있습니다.")
         return
     end
 
@@ -97,13 +97,13 @@ function send_discord_notification(title, description)
         settings.webhook_url
     )
 
-    print("[OBS Discord Notify] 등록된 웹훅 URL로 메시지를 전송합니다: " .. safe_title)
+    print("등록된 웹훅 URL로 메시지를 전송합니다: " .. safe_title)
     os.execute(command)
 end
 
 -- 테스트 버튼 눌렀을 때 실행
 function on_test_button_pressed(props, prop)
-    print("[OBS Discord Notify] 테스트 메시지 전송 중...")
+    print("테스트 메시지 전송 중...")
     send_discord_notification("🧪 OBS 스크립트 테스트", "이 메시지는 테스트용입니다.")
     return true
 end
