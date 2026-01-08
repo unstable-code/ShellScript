@@ -52,7 +52,7 @@ function send_discord_notification(message)
         settings.webhook_url
     )
 
-    print("[OBS Discord Notify] 실행 명령: " .. command)
+    print("[OBS Discord Notify] 등록된 웹훅 URL로 메시지를 전송합니다: " .. safe_message)
     os.execute(command)
 end
 
