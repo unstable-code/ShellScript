@@ -53,11 +53,6 @@ end
 function on_event(event)
     if event == obs.OBS_FRONTEND_EVENT_RECORDING_STARTED then
         recording_info.title = get_playerctl_title()
-        if recording_info.title then
-            print("[OBS Discord Notify] 녹화 시작 - 저장된 제목: " .. recording_info.title)
-        else
-            print("[OBS Discord Notify] 녹화 시작 - 재생 중인 미디어 없음")
-        end
     elseif event == obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED then
         local title = settings.message_text
         local description = recording_info.title and ("📺 " .. recording_info.title) or nil
@@ -102,6 +97,7 @@ function send_discord_notification(title, description)
         settings.webhook_url
     )
 
+    print("[OBS Discord Notify] 등록된 웹훅 URL로 메시지를 전송합니다: " .. safe_title)
     os.execute(command)
 end
 
