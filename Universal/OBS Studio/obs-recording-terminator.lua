@@ -41,12 +41,12 @@ function change_interval(stat)
         fired = true
         obs.timer_remove(check_and_stop_recording)
         obs.timer_add(check_and_stop_recording, 1000)
-        print("successfully changed obs.timer interval: 3000 -> 1000 ms due to ")
+        print("Timer interval changed: 3000 -> 1000 ms (player is playing)")
     else
         fired = false
         obs.timer_remove(check_and_stop_recording)
         obs.timer_add(check_and_stop_recording, 3000)
-        print("successfully changed obs.timer interval: 1000 -> 3000 ms due to ")
+        print("Timer interval changed: 1000 -> 3000 ms (player stopped)")
     end
 end
 
@@ -54,7 +54,7 @@ end
 function check_and_stop_recording()
     if not is_player_playing() then
         if obs.obs_frontend_recording_active() and fired then
-            print("OBS recording was stopped due to " .. player_name .. " does not playing any media.")
+            print("OBS recording was stopped due to " .. player_name .. " not playing any media.")
             obs.obs_frontend_recording_stop()
             change_interval(false)
         else

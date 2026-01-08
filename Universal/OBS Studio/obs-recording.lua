@@ -40,9 +40,9 @@ function on_recording_started()
     status_handle:close()
 
     if not status == "playing" then
-        print("error: unable to play media. " .. player_name .. " doesn't accepted any media or unsupported media keys.")
+        print("error: unable to play media. " .. player_name .. " doesn't accept any media or has unsupported media keys.")
         if obs.obs_frontend_recording_active() then
-            print("OBS recording was stopped due to " .. player_name .. " does not playing any media.")
+            print("OBS recording was stopped due to " .. player_name .. " not playing any media.")
             obs.obs_frontend_recording_stop()
         end
 
