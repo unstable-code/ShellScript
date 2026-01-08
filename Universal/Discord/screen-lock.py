@@ -39,6 +39,10 @@ async def status(interaction: discord.Interaction):
 
 
 # 봇 실행
+is_sway_running = subprocess.run(["pgrep", "-x", "sway"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+if is_sway_running.returncode != 0:
+    sys.exit(0)
+
 token = os.environ.get("DISCORD_BOT_SWAY")
 if token:
     client.run(token)
