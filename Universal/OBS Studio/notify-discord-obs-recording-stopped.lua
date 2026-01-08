@@ -59,37 +59,56 @@ function on_event(event)
             print("[OBS Discord Notify] 녹화 시작 - 재생 중인 미디어 없음")
         end
     elseif event == obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED then
-        local message = settings.message_text
-        if recording_info.title then
-            message = message .. "\n📺 " .. recording_info.title
-        end
-        send_discord_notification(message)
+        local title = settings.message_text
+        local description = recording_info.title and ("📺 " .. recording_info.title) or nil
+        send_discord_notification(title, description)
         recording_info.title = nil -- 초기화
     end
 end
 
--- 메시지 전송 함수
-function send_discord_notification(message)
+-- JSON 문자열 이스케이프
+function escape_json(str)
+    if not str then return "" end
+    return str:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n'):gsub('\r', '\\r'):gsub('\t', '\\t')
+end
+
+-- 메시지 전송 함수 (Discord Embed 형식)
+function send_discord_notification(title, description)
     if settings.webhook_url == "" then
         print("[OBS Discord Notify] 웹훅 URL이 비어 있습니다.")
         return
     end
 
-    local safe_message = message:gsub('"', '\\"')
+    local safe_title = escape_json(title)
+    local json_payload
+
+    if description and description ~= "" then
+        local safe_desc = escape_json(description)
+        json_payload = string.format(
+            '{"embeds":[{"title":"%s","description":"%s","color":3066993}]}',
+            safe_title,
+            safe_desc
+        )
+    else
+        json_payload = string.format(
+            '{"embeds":[{"title":"%s","color":3066993}]}',
+            safe_title
+        )
+    end
+
     local command = string.format(
-        'curl -s -H "Content-Type: application/json" -X POST -d \'{"content": "%s"}\' "%s"',
-        safe_message,
+        "curl -s -H 'Content-Type: application/json' -X POST -d '%s' '%s'",
+        json_payload,
         settings.webhook_url
     )
 
-    print("[OBS Discord Notify] 등록된 웹훅 URL로 메시지를 전송합니다: " .. safe_message)
     os.execute(command)
 end
 
 -- 테스트 버튼 눌렀을 때 실행
 function on_test_button_pressed(props, prop)
     print("[OBS Discord Notify] 테스트 메시지 전송 중...")
-    send_discord_notification("[테스트] 이 메시지는 OBS 스크립트에서 전송되었습니다.")
+    send_discord_notification("🧪 OBS 스크립트 테스트", "이 메시지는 테스트용입니다.")
     return true
 end
 
