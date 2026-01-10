@@ -21,8 +21,8 @@ FEED_CONTENT=$(curl -s "$REPO_FEED")
 # 최신 entry 추출 (첫 번째 entry만)
 LATEST_ENTRY=$(echo "$FEED_CONTENT" | awk '/<entry>/,/<\/entry>/' | head -50)
 
-# 피드 ID 추출
-FEED_ID=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<id>)[^<]+' | head -1)
+# 피드 ID에서 슬러그만 추출 (URL 마지막 부분)
+FEED_ID=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<id>)[^<]+' | head -1 | sed 's|.*/\([^/]*\)/$|\1|')
 TITLE=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<title>)[^<]+' | head -1)
 LINK=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<link href=.)[^'"'"'"]+' | head -1)
 PUBLISHED=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<published>)[^<]+' | head -1)
@@ -143,7 +143,7 @@ BODY=$(echo "$RESPONSE" | head -n -1)
 
 if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
     echo "Successfully sent! (HTTP $HTTP_CODE)"
-    echo "$FEED_ID" >> "$CACHE_FILE"
+    echo "$FEED_ID" > "$CACHE_FILE"
 else
     echo "Failed to send (HTTP $HTTP_CODE): $BODY" >&2
     exit 1
