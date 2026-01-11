@@ -105,7 +105,7 @@ find ~/.venv -maxdepth 1 -type d | while read venv; do
     if [ -x "$venv/bin/pip" ]; then
         echo -e "\n\033[37mupdater: Updating pip packages in: $venv...\033[m"
 
-        "$venv/bin/python" -m venv --upgrade
+        "$venv/bin/python" -m venv --upgrade $venv
         "$venv/bin/python" -m pip install -U pip
         "$venv/bin/pip" list --not-required --format=freeze \
           | grep -v 'pip==' \
