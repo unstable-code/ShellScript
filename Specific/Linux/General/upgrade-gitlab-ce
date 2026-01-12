@@ -116,15 +116,29 @@ if [ $? -ne 0 -a $UID -ne 0 ]; then
     exit 1
 fi
 
-if [ $(docker ps -a --format "{{.Names}}" | grep -c '^gitlab$') -eq 0 ]; then
-    echo 'Error: gitlab/gitlab-ce container does not exist.' >&2
+# --------------------------
+# 🔍 gitlab/gitlab-ce 컨테이너 자동 감지
+# --------------------------
+CONTAINER_CANDIDATES=$(docker ps -a --format "{{.Image}}\t{{.Names}}" | grep "^gitlab/gitlab-ce" | awk '{print $2}')
+CONTAINER_COUNT=$(echo "$CONTAINER_CANDIDATES" | grep -c .)
+
+if [ $CONTAINER_COUNT -eq 0 ]; then
+    echo 'Error: No container using gitlab/gitlab-ce image found.' >&2
+    exit 1
+elif [ $CONTAINER_COUNT -gt 1 ]; then
+    echo 'Error: Multiple gitlab/gitlab-ce containers found:' >&2
+    echo "$CONTAINER_CANDIDATES" | sed 's/^/  - /' >&2
+    echo 'Please keep only one container running or specify which one to upgrade.' >&2
     exit 1
 fi
+
+CONTAINER_NAME=$CONTAINER_CANDIDATES
+echo "Detected gitlab container: $CONTAINER_NAME"
 
 # --------------------------
 # 1️⃣ 볼륨 마운트 추출
 # --------------------------
-VOLUMES=$(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' \
+VOLUMES=$(docker inspect $CONTAINER_NAME --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' \
     | tr ' ' '\n' \
     | sed '/^$/d' \
     | awk '{printf "-v %s ", $0}' \
@@ -133,7 +147,7 @@ VOLUMES=$(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destin
 # --------------------------
 # 2️⃣ 포트 매핑 추출
 # --------------------------
-PORTS=$(docker inspect gitlab --format='{{range $p, $conf := .HostConfig.PortBindings}}{{$p}}:{{(index $conf 0).HostPort}} {{end}}' \
+PORTS=$(docker inspect $CONTAINER_NAME --format='{{range $p, $conf := .HostConfig.PortBindings}}{{$p}}:{{(index $conf 0).HostPort}} {{end}}' \
     | tr ' ' '\n' \
     | sed '/^$/d' \
     | sed 's/\/tcp//g' \
@@ -185,13 +199,13 @@ send_discord_webhook() {
 }
 
 check_gitlab_server_healthy() {
-    docker exec gitlab gitlab-ctl status
+    docker exec $CONTAINER_NAME gitlab-ctl status
     if [ $? -eq 0 ]; then
-        docker exec gitlab gitlab-ctl reconfigure
-        docker exec gitlab gitlab-ctl pg-upgrade
-        docker exec gitlab gitlab-rake db:migrate
-        docker exec gitlab gitlab-ctl restart
-        docker exec gitlab gitlab-ctl status || print_stacktrace_errors
+        docker exec $CONTAINER_NAME gitlab-ctl reconfigure
+        docker exec $CONTAINER_NAME gitlab-ctl pg-upgrade
+        docker exec $CONTAINER_NAME gitlab-rake db:migrate
+        docker exec $CONTAINER_NAME gitlab-ctl restart
+        docker exec $CONTAINER_NAME gitlab-ctl status || print_stacktrace_errors
     else
         print_stacktrace_errors
     fi
@@ -201,23 +215,23 @@ print_stacktrace_errors() {
     if [ $_in_stacktrace -eq 1 ]; then
         return 0
     fi
-    if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
+    if [ $(docker inspect --format='{{.State.ExitCode}}' $CONTAINER_NAME) -ne 0 ]; then
         _in_stacktrace=1
-        echo -e "\nError: gitlab container died with the following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
+        echo -e "\nError: gitlab container died with the following status code: $(docker inspect --format='{{.State.ExitCode}}' $CONTAINER_NAME)" >&2
 
         if [ $# -eq 2 ]; then
             # 업그레이드에 실패했으나 다운그레이드가 가능할 경우
             echo "An error occurred while installing $1. Will try to roll back to the following previous version: $2." >&2
             send_discord_webhook "ERR" "Installation was rejected" "$1 died with non-zero exit code. Roll back to $2"
 
-            docker ps --format "{{.Names}}" | grep -q '^gitlab$'
+            docker ps --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"
             if [ $? -eq 0 ]; then
                 echo -n "stopping $1 container with SIGINT signal..."
-                docker stop gitlab &> /dev/null
+                docker stop $CONTAINER_NAME &> /dev/null
                 echo ' done'
             fi
             echo -n "removing $1 container..."
-            docker container rm gitlab &> /dev/null
+            docker container rm $CONTAINER_NAME &> /dev/null
             echo ' done'
 
             echo -n "removing previous $1 image..."
@@ -225,7 +239,7 @@ print_stacktrace_errors() {
             echo ' done'
 
             docker pull gitlab/gitlab-ce:$2
-            docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$2
+            docker run -d --name $CONTAINER_NAME $VOLUMES $PORTS gitlab/gitlab-ce:$2
 
             echo -n "waiting until gitlab/gitlab-ce:$2 server boots... "
             spinner='/-\|'
@@ -243,7 +257,7 @@ print_stacktrace_errors() {
             spinner='/-\|'
             n=${#spinner}
             echo -n ' '
-            while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+            while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
                 printf '\b%s' "${spinner:i++%n:1}"
                 print_stacktrace_errors
                 sleep 1
@@ -259,13 +273,13 @@ print_stacktrace_errors() {
             exit 2
         else
             # 업그레이드 및 다운그레이드 모두 실패시
-            docker logs --tail 200 gitlab >&2
+            docker logs --tail 200 $CONTAINER_NAME >&2
             send_discord_webhook "ERR" "FATAL ERROR occurred!" "See: https://docs.gitlab.com/administration/backup_restore"
             echo -e '\e[1;5;37;41mFATAL ERROR: MANUAL INTERVENTION IS REQUIRED\e[0m' >&2
             echo 'upgrade-gitlab-ce script does not recover this issue. Please restore previous backup with `gitlab-rake gitlab:backup:restore`' >&2
             echo 'For more information, please visit: https://docs.gitlab.com/administration/backup_restore' >&2
             if [ -z "$BACKUP_DIR" ]; then
-                BACKUP_DIR=$(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb 2>/dev/null | awk -F"=" '{ print $2 }' | sed 's/\"//g' | sed 's/^ //')
+                BACKUP_DIR=$(docker exec $CONTAINER_NAME grep "'backup_path'" /etc/gitlab/gitlab.rb 2>/dev/null | awk -F"=" '{ print $2 }' | sed 's/\"//g' | sed 's/^ //')
             fi
             echo "backup_path: $BACKUP_DIR" >&2
             exit 1
@@ -273,13 +287,13 @@ print_stacktrace_errors() {
     fi
 }
 
-if ! docker ps --format "{{.Names}}" | grep -q '^gitlab$'; then
+if ! docker ps --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"; then
     echo -n 'waiting until GitLab server is back online... '
-    docker start gitlab &> /dev/null
+    docker start $CONTAINER_NAME &> /dev/null
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+    while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
         printf '\b%s' "${spinner:i++%n:1}"
         print_stacktrace_errors
         sleep 1
@@ -288,7 +302,7 @@ if ! docker ps --format "{{.Names}}" | grep -q '^gitlab$'; then
     echo 'done'
 fi
 
-CURRENT_VERSION=$(docker exec gitlab dpkg -l | grep gitlab | awk '{ print $3 }')
+CURRENT_VERSION=$(docker exec $CONTAINER_NAME dpkg -l | grep gitlab | awk '{ print $3 }')
 if [ -z "$CURRENT_VERSION" ]; then
     exit 1
 fi
@@ -555,7 +569,7 @@ if [ ${#UPGRADE_POINTS_ARRAY[@]} -eq 0 ]; then
 
     curl -sf -o /dev/null $TARGET_URL/explore/projects
     if [ $? -ne 0 ]; then
-        echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
+        echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect $CONTAINER_NAME --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it $CONTAINER_NAME /bin/bash && vi /etc/gitlab/gitlab.rb'"
     fi
     exit 0
 fi
@@ -577,17 +591,17 @@ fi
 echo ''
 echo -e "\t- I understood that this action DOES NOT SUPPORT rollback"
 echo -e "\t- I understood that this action may take a long time due to the ROUTING COUNT."
-echo -e "\t- I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
-echo -e "\t- I checked container PORTS: $(docker inspect gitlab --format='{{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostPort}} {{end}}')"
-echo -e "\t- I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
-echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec gitlab grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
-echo -e "\t- I checked gitlab backup_path in gitlab.rb file: $(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{print $2}' | sed 's/\"//g' | sed 's/^ //')"
-if [ $(docker exec gitlab gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
+echo -e "\t- I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' $CONTAINER_NAME)"
+echo -e "\t- I checked container PORTS: $(docker inspect $CONTAINER_NAME --format='{{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostPort}} {{end}}')"
+echo -e "\t- I checked container DRIVE: $(docker inspect $CONTAINER_NAME --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
+echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec $CONTAINER_NAME grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
+echo -e "\t- I checked gitlab backup_path in gitlab.rb file: $(docker exec $CONTAINER_NAME grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{print $2}' | sed 's/\"//g' | sed 's/^ //')"
+if [ $(docker exec $CONTAINER_NAME gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
     echo -e "\t- I checked this GitLab server has not configured any runners yet."
 else
     echo ''
     echo -e "\t- I checked this GitLab server is configured with the following runners:"
-    docker exec gitlab gitlab-psql -c "SELECT id, description, contacted_at, active FROM ci_runners ORDER BY id;"
+    docker exec $CONTAINER_NAME gitlab-psql -c "SELECT id, description, contacted_at, active FROM ci_runners ORDER BY id;"
     echo ''
 fi
 if [ $use_all_tags -eq 0 ]; then
@@ -604,14 +618,14 @@ if ! [ "$n" == "y" -o "$n" == "Y" ]; then
 fi
 
 send_discord_webhook "NOTE" "Updating GitLab now!" "GitLab will be upgraded from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
-auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)
+auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' $CONTAINER_NAME)
 
 if ! [ -r /tmp/upgrade-gitlab-ce.lock ]; then
     echo "Creating backups for $CURRENT_VERSION. Please wait until backup process is completed..."
-    docker exec gitlab gitlab-backup create
-    BACKUP_DIR=$(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{ print $2 }' | sed 's/\"//g' | sed 's/^ //')
-    docker exec gitlab sh -c "cp /etc/gitlab/gitlab-secrets.json $BACKUP_DIR/gitlab-secrets.json.${CURRENT_VERSION}-backup"
-    docker exec gitlab sh -c "cp /etc/gitlab/gitlab.rb $BACKUP_DIR/gitlab.rb.${CURRENT_VERSION}-backup"
+    docker exec $CONTAINER_NAME gitlab-backup create
+    BACKUP_DIR=$(docker exec $CONTAINER_NAME grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{ print $2 }' | sed 's/\"//g' | sed 's/^ //')
+    docker exec $CONTAINER_NAME sh -c "cp /etc/gitlab/gitlab-secrets.json $BACKUP_DIR/gitlab-secrets.json.${CURRENT_VERSION}-backup"
+    docker exec $CONTAINER_NAME sh -c "cp /etc/gitlab/gitlab.rb $BACKUP_DIR/gitlab.rb.${CURRENT_VERSION}-backup"
 fi
 
 index=1
@@ -619,14 +633,14 @@ CNT_VERSION=$CURRENT_VERSION
 for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     send_discord_webhook "INFO" "GitLab server is upgrading now! ($index/${#UPGRADE_POINTS_ARRAY[@]})" "Please wait until upgrading process is done."
     echo "Updating $CNT_VERSION to $ver... ($index/${#UPGRADE_POINTS_ARRAY[@]})"
-    docker ps --format "{{.Names}}" | grep -q '^gitlab$'
+    docker ps --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"
     if [ $? -ne 0 ]; then
-        docker start gitlab &> /dev/null
+        docker start $CONTAINER_NAME &> /dev/null
         echo -n "waiting until gitlab/gitlab-ce:$CNT_VERSION container is ready..."
         spinner='/-\|'
         n=${#spinner}
         echo -n ' '
-        while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+        while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
             printf '\b%s' "${spinner:i++%n:1}"
             print_stacktrace_errors
             sleep 1
@@ -637,14 +651,14 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
 
     check_gitlab_server_healthy
 
-    docker ps --format "{{.Names}}" | grep -q '^gitlab$'
+    docker ps --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"
     if [ $? -eq 0 ]; then
         echo -n "stopping $CNT_VERSION container with SIGINT signal..."
-        docker stop gitlab &> /dev/null
+        docker stop $CONTAINER_NAME &> /dev/null
         echo ' done'
     fi
     echo -n "removing $CNT_VERSION container..."
-    docker container rm gitlab &> /dev/null
+    docker container rm $CONTAINER_NAME &> /dev/null
     echo ' done'
 
     echo -n "removing previous $CNT_VERSION image..."
@@ -652,7 +666,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo ' done'
 
     docker pull gitlab/gitlab-ce:$ver
-    docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$ver
+    docker run -d --name $CONTAINER_NAME $VOLUMES $PORTS gitlab/gitlab-ce:$ver
 
     echo -n "waiting until gitlab/gitlab-ce:$ver server boots... "
     spinner='/-\|'
@@ -670,7 +684,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(docker inspect --format='{{.State.Health.Status}}' gitlab | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+    while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
         printf '\b%s' "${spinner:i++%n:1}"
         print_stacktrace_errors $ver $CNT_VERSION
         sleep 1
@@ -690,7 +704,7 @@ done
 
 check_gitlab_server_healthy
 
-if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ] && [ "$auto_restart_enabled" == 'no' ]; then
+if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' $CONTAINER_NAME)" ] && [ "$auto_restart_enabled" == 'no' ]; then
     echo "Would you like to change RestartPolicy from $auto_restart_enabled to always?"
     echo 'AVAILABLE OPTIONS'
     echo -e 'no\t\t\t\tDo not automatically restart the container. (Default, Current)'
@@ -701,15 +715,15 @@ if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.Restar
     read n
     case "$n" in
         no|always|unless-stopped|on-failure|on-failure:[0-9]*)
-            docker update --restart=$n gitlab
+            docker update --restart=$n $CONTAINER_NAME
             ;;
         *)
-            echo 'If you want to edit RestartPolicy value later, please run `docker update --restart=<rule> gitlab` to apply.'
+            echo 'If you want to edit RestartPolicy value later, please run `docker update --restart=<rule> <container-name>` to apply.'
             ;;
     esac
-elif [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
-    echo "Updating gitlab RestartPolicy from $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled"
-    docker update --restart=$auto_restart_enabled gitlab &> /dev/null
+elif [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' $CONTAINER_NAME)" ]; then
+    echo "Updating gitlab RestartPolicy from $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' $CONTAINER_NAME) to $auto_restart_enabled"
+    docker update --restart=$auto_restart_enabled $CONTAINER_NAME &> /dev/null
 fi
 
 echo "Successfully updated GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
