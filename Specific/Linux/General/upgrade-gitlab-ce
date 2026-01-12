@@ -2,32 +2,33 @@
 
 PAGE_SIZE=${PAGE_SIZE:-25}
 BACKUP_DIR=
-DISCORD_URL=${DISCORD_URL}
+DISCORD_URL=${DISCORD_URL:-}
 
 use_local_versions=/dev/null
 extract_versions_only=0
 use_all_tags=0
 target_version_tag=
 auto_restart_enabled=no
+_in_stacktrace=0
 
 if [ "$1" == "--help" -o "$1" == "help" ]; then
-    echo "usage: $0 [--all-tags [--page-size=25]] [--target-url=http] [--extract | [--version=0.0.0] [FILE]]"
+    echo "Usage: $0 [--all-tags [--page-size=25]] [--target-url=http] [--extract | [--version=0.0.0] [FILE]]"
 
     echo -e '\n\e[0;1mOPTIONS\e[m'
-    echo -e "--help\t\t\tshow this help."
-    echo -e "--extract\t\tdownload gitlab-ce released tags file. (aka. export)"
-    echo -e "\t\t\ttags file will be saved to /tmp/gitlab-released-tags.txt"
-    echo -e "--all-tags\t\tparsing all supported in Docker Hub instead of GitLab upgrade-path site."
-    echo -e "--version=0.0.0\t\tusing provided tags instead of latest tag."
-    echo -e "--target-url=http\tA simple connection test for your GitLab server."
-    echo -e "--discord-url=http\tnotify with discord webhook"
-    echo -e "--page-size=25\t\thow many spolling amount each page with --all-tags flags."
-    echo -e "FILE\t\t\tusing provided file with already ASC sorted contents"
+    echo -e "--help\t\t\tShow this help."
+    echo -e "--extract\t\tDownload gitlab-ce released tags file. (aka. export)"
+    echo -e "\t\t\tTags file will be saved to /tmp/gitlab-released-tags.txt"
+    echo -e "--all-tags\t\tParse all tags from Docker Hub instead of GitLab upgrade-path site."
+    echo -e "--version=0.0.0\t\tUse provided tag instead of latest tag."
+    echo -e "--target-url=http\tPerform a simple connection test for your GitLab server."
+    echo -e "--discord-url=http\tNotify via Discord webhook."
+    echo -e "--page-size=25\t\tSet the number of tags per page with --all-tags flag."
+    echo -e "FILE\t\t\tUse provided file with already ASC sorted contents."
 
     echo -e '\n\e[0;1mENV VALUES\e[m'
-    echo -e "TARGET_URL=http\t\tsame as --target-url flags"
-    echo -e "DISCORD_URL=http\tsame as --discord-url flags"
-    echo -e "PAGE_SIZE=25\t\tsame as --page-size flags"
+    echo -e "TARGET_URL=http\t\tSame as --target-url flag."
+    echo -e "DISCORD_URL=http\tSame as --discord-url flag."
+    echo -e "PAGE_SIZE=25\t\tSame as --page-size flag."
     exit 0
 else
     params=("${@}")
@@ -43,50 +44,50 @@ else
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
                 if [ -n "$target_version_tag" ]; then
-                    echo "warn: overriding target_version_tag from $target_version_tag to $temp"
+                    echo "Warning: Overriding target_version_tag from $target_version_tag to $temp"
                 fi
-                if [ $(echo $temp | grep -c '\-ce') -ne 1 ]; then
+                if [ $(echo "$temp" | grep -c '\-ce') -ne 1 ]; then
                     target_version_tag="$temp-ce.0"
                 else
                     target_version_tag=$temp
                 fi
 
-                curl -sf https://hub.docker.com/layers/gitlab/gitlab-ce/$target_version_tag &> /dev/null
+                curl -sf "https://hub.docker.com/v2/repositories/gitlab/gitlab-ce/tags/$target_version_tag" &> /dev/null
                 if [ $? -eq 0 ]; then
-                    echo "using $target_version_tag instead of latest"
+                    echo "Using $target_version_tag instead of latest"
                     extract_versions_only=0
                 else
-                    echo "error: no such $target_version_tag tags in Docker Hub. using alternative tag: latest" >&2
+                    echo "Error: No such $target_version_tag tag in Docker Hub. Using alternative tag: latest" >&2
                     target_version_tag=
                 fi
             elif [[ "${params[$i]}" == "--target-url"* ]]; then
                 if [ -n "$TARGET_URL" ]; then
-                    echo "warn: overriding TARGET_URL from $TARGET_URL to $temp"
+                    echo "Warning: Overriding TARGET_URL from $TARGET_URL to $temp"
                 fi
                 TARGET_URL=$temp
             elif [[ "${params[$i]}" == "--discord-url"* ]]; then
                 if [ -n "$DISCORD_URL" ]; then
-                    echo "warn: overriding TARGET_URL from $DISCORD_URL to $temp"
+                    echo "Warning: Overriding DISCORD_URL from $DISCORD_URL to $temp"
                 fi
                 DISCORD_URL=$temp
             elif [[ "${params[$i]}" == "--page-size"* ]]; then
                 if [ -n "$PAGE_SIZE" ]; then
-                    echo "warn: overriding PAGE_SIZE from $PAGE_SIZE to $temp"
+                    echo "Warning: Overriding PAGE_SIZE from $PAGE_SIZE to $temp"
                 fi
                 PAGE_SIZE=$temp
             fi
         elif [ -f "${params[$i]}" ] && [ "$use_local_versions" == '/dev/null' -a $extract_versions_only -eq 0 ]; then
-            echo "using ${params[$i]} file to take effect reducing time about sorting version tags"
+            echo "Using ${params[$i]} file to reduce time spent sorting version tags"
             cat -A "${params[$i]}" | tail -n1 | grep '\$' &> /dev/null
             if [ $? -ne 0 ]; then
                 echo '' >> "${params[$i]}"
             fi
 
-            cat "${params[$i]}" | grep -viE '(rc|nightly|latest)' | tee "${params[$i]}" > /dev/null
+            grep -viE '(rc|nightly|latest)' "${params[$i]}" > "${params[$i]}.tmp" && mv "${params[$i]}.tmp" "${params[$i]}"
             requirements=$(cat "${params[$i]}" | grep -cE '^[0-9]+\.[0-9]+\.[0-9]+-ce\.[0-9]+$')
             total=$(cat "${params[$i]}" | wc -l)
             if [ $requirements -ne $total ]; then
-                echo "error: provided file contents does not containing gitlab-ce version tags" >&2
+                echo "Error: Provided file contents do not contain gitlab-ce version tags" >&2
                 cat "${params[$i]}" | head -n 10 >&2
                 continue
             else
@@ -98,25 +99,25 @@ fi
 
 which docker &> /dev/null
 if [ $? -ne 0 ]; then
-    echo "This system did not installed docker yet. $(uname -a)" >&2
+    echo "Docker is not installed on this system. $(uname -a)" >&2
     if [ -d /usr/syno ]; then
-        echo 'Please install docker(Obsolete) or ContainerManager before running this script.' >&2
-        echo -e '\nref:\n\thttps://www.synology.com/dsm/feature/container-manager' >&2
+        echo 'Please install Docker (Obsolete) or ContainerManager before running this script.' >&2
+        echo -e '\nRef:\n\thttps://www.synology.com/dsm/feature/container-manager' >&2
     else
         echo 'Please install DockerEngine or DockerDesktop before running this script.' >&2
-        echo -e '\nref:\n\thttps://docs.docker.com/engine/install\n\thttps://docs.docker.com/desktop' >&2
+        echo -e '\nRef:\n\thttps://docs.docker.com/engine/install\n\thttps://docs.docker.com/desktop' >&2
     fi
     exit 1
 fi
 
 id | grep docker &> /dev/null
 if [ $? -ne 0 -a $UID -ne 0 ]; then
-    echo "the $USER user does not have enough docker.sock permission." >&2
+    echo "The $USER user does not have enough docker.sock permissions." >&2
     exit 1
 fi
 
 if [ $(docker ps -a --format "{{.Names}}" | grep -c '^gitlab$') -eq 0 ]; then
-    echo 'error: gitlab/gitlab-ce container does not exist.' >&2
+    echo 'Error: gitlab/gitlab-ce container does not exist.' >&2
     exit 1
 fi
 
@@ -161,7 +162,6 @@ send_discord_webhook() {
         return 1
     fi
 
-
     JSON_PAYLOAD=$(jq -n \
         --arg title "$format_title" \
         --arg description "$3" \
@@ -181,7 +181,7 @@ send_discord_webhook() {
     curl -s -H "Content-Type: application/json" \
         -X POST \
         -d "$JSON_PAYLOAD" \
-        "$DISCORD_URL" > /dev/null
+        "$DISCORD_URL" &> /dev/null
 }
 
 check_gitlab_server_healthy() {
@@ -198,13 +198,17 @@ check_gitlab_server_healthy() {
 }
 
 print_stacktrace_errors() {
+    if [ $_in_stacktrace -eq 1 ]; then
+        return 0
+    fi
     if [ $(docker inspect --format='{{.State.ExitCode}}' gitlab) -ne 0 ]; then
-        echo -e "\nerror: gitlab container was died with following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
+        _in_stacktrace=1
+        echo -e "\nError: gitlab container died with the following status code: $(docker inspect --format='{{.State.ExitCode}}' gitlab)" >&2
 
         if [ $# -eq 2 ]; then
             # 업그레이드에 실패했으나 다운그레이드가 가능할 경우
-            echo "An error occurred while installing $1. will trying to rollback with following previous version: $2." >&2
-            send_discord_webhook "ERR" "Installation was rejected" "$1 was died with non-zero exit code. rollback to $2"
+            echo "An error occurred while installing $1. Will try to roll back to the following previous version: $2." >&2
+            send_discord_webhook "ERR" "Installation was rejected" "$1 died with non-zero exit code. Roll back to $2"
 
             docker ps --format "{{.Names}}" | grep -q '^gitlab$'
             if [ $? -eq 0 ]; then
@@ -223,7 +227,7 @@ print_stacktrace_errors() {
             docker pull gitlab/gitlab-ce:$2
             docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$2
 
-            echo -n "waiting until gitlab/gitlab-ce:$2 server to boot... "
+            echo -n "waiting until gitlab/gitlab-ce:$2 server boots... "
             spinner='/-\|'
             n=${#spinner}
             echo -n ' '
@@ -249,17 +253,20 @@ print_stacktrace_errors() {
 
             check_gitlab_server_healthy
             echo "Successfully downgraded GitLab server from $1 to $2"
-            echo 'please re-run this script to continue upgrade process.'
-            send_discord_webhook "NOTE" "successfully downgraded $2" ""
+            echo 'Please re-run this script to continue upgrade process.'
+            send_discord_webhook "NOTE" "Successfully downgraded to $2" ""
             touch /tmp/upgrade-gitlab-ce.lock
             exit 2
         else
             # 업그레이드 및 다운그레이드 모두 실패시
             docker logs --tail 200 gitlab >&2
-            send_discord_webhook "ERR" "FATAL ERROR occurred!" "see: https://docs.gitlab.com/administration/backup_restore"
+            send_discord_webhook "ERR" "FATAL ERROR occurred!" "See: https://docs.gitlab.com/administration/backup_restore"
             echo -e '\e[1;5;37;41mFATAL ERROR: MANUAL INTERVENTION IS REQUIRED\e[0m' >&2
-            echo 'upgrade-gitlab-ce script does not recover this issue. please restore previous backup with `gitlab-rake gitlab:backup:restore`' >&2
-            echo 'for more infomations please visit: https://docs.gitlab.com/administration/backup_restore' >&2
+            echo 'upgrade-gitlab-ce script does not recover this issue. Please restore previous backup with `gitlab-rake gitlab:backup:restore`' >&2
+            echo 'For more information, please visit: https://docs.gitlab.com/administration/backup_restore' >&2
+            if [ -z "$BACKUP_DIR" ]; then
+                BACKUP_DIR=$(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb 2>/dev/null | awk -F"=" '{ print $2 }' | sed 's/\"//g' | sed 's/^ //')
+            fi
             echo "backup_path: $BACKUP_DIR" >&2
             exit 1
         fi
@@ -267,8 +274,8 @@ print_stacktrace_errors() {
 }
 
 if ! docker ps --format "{{.Names}}" | grep -q '^gitlab$'; then
-    echo -n 'waiting until GitLab server is back to online... '
-    docker start gitlab > /dev/null
+    echo -n 'waiting until GitLab server is back online... '
+    docker start gitlab &> /dev/null
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
@@ -296,21 +303,33 @@ draw_progress() {
     local item_name=$4
 
     # 진행률 계산
-    local progress=$(( current * 100 / total ))
+    local progress=0
+    if [ $total -gt 0 ]; then
+        progress=$(( current * 100 / total ))
+    fi
 
     # 채워진 길이 계산
     local filled=$(( progress * bar_length / 100 ))
     local empty=$(( bar_length - filled ))
 
     # 바 만들기
-    local bar=$(printf "%0.s=" $(seq 1 $filled))
-    local spaces=$(printf "%0.s " $(seq 1 $empty))
+    local bar=""
+    local spaces=""
+    if [ $filled -gt 0 ]; then
+        bar=$(printf "%0.s=" $(seq 1 $filled))
+    fi
+    if [ $empty -gt 0 ]; then
+        spaces=$(printf "%0.s " $(seq 1 $empty))
+    fi
 
     # 경과 시간
     local elapsed=$(( SECONDS - start_time ))
 
-    # ETA 계산 (index > 0일 때만)
-    local eta=$(( elapsed * (total - current) / current ))
+    # ETA 계산 (current > 0일 때만)
+    local eta=0
+    if [ $current -gt 0 ]; then
+        eta=$(( elapsed * (total - current) / current ))
+    fi
 
     # ETA를 HH:MM:SS로 변환
     local h=$(( eta / 3600 ))
@@ -331,7 +350,7 @@ if [ "$use_local_versions" == '/dev/null' ]; then
     if [ $use_all_tags -eq 0 ]; then
         TAGS_URL="https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/path.json"
 
-        echo "Processing GitLab-CE container tags... location: $TAGS_URL"
+        echo "Processing GitLab-CE container tags... Location: $TAGS_URL"
         ALL_TAGS=()
         if [ -z "$target_version_tag" ]; then
             ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
@@ -344,10 +363,10 @@ if [ "$use_local_versions" == '/dev/null' ]; then
         if [ $extract_versions_only -eq 1 ]; then
             echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
             if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
-                echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
+                echo -e '\nNote: Successfully exported gitlab-ce released tags. These tags are already sorted in ASC order. Location: /tmp/gitlab-released-tags.txt'
                 exit 0
             else
-                echo -e '\nerror: failed to export gitlab-ce released tags. internal error occurred.' >&2
+                echo -e '\nError: Failed to export gitlab-ce released tags. Internal error occurred.' >&2
                 rm /tmp/gitlab-released-tags.txt &> /dev/null
                 exit 1
             fi
@@ -364,7 +383,7 @@ if [ "$use_local_versions" == '/dev/null' ]; then
 
         ALL_TAGS=()
 
-        echo "Spolling GitLab-CE container tags... location: $TAGS_URL"
+        echo "Spooling GitLab-CE container tags... Location: $TAGS_URL"
         while [ -n "$TAGS_URL" ]; do
             RESPONSE=$(curl -sL "$TAGS_URL")
             TAGS=$(echo "$RESPONSE" | jq -r '.results[].name')
@@ -375,21 +394,20 @@ if [ "$use_local_versions" == '/dev/null' ]; then
                 draw_progress $CURRENT_PAGE $TOTAL_PAGES 'Querying GitLab Releases' 'Page'
             fi
             ALL_TAGS+=($TAGS)
-            TAGS_URL=$(echo "$RESPONSE" | jq -r '.next')
+            TAGS_URL=$(echo "$RESPONSE" | jq -r '.next // empty')
         done
 
         echo -e "\nSorting ASC GitLab-CE released tags..."
 
         # 버전 정렬
-        printf '%s\n' "${ALL_TAGS[@]}" > /tmp/gitlab-parsed.log
-        cat /tmp/gitlab-parsed.log | tr ' ' '\n' | tee /tmp/gitlab-parsed.log > /dev/null
+        printf '%s\n' "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-parsed.log
 
-        RAW_TAGS_N=$(cat /tmp/gitlab-parsed.log | sort -V | grep -viE '(rc|nightly|latest)')
+        RAW_TAGS_N=$(sort -V /tmp/gitlab-parsed.log | grep -viE '(rc|nightly|latest)')
         count=1
         mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
 
         if [ ${#RAW_TAGS[@]} -lt 2 ]; then
-            echo 'error: unexpected EOF while parsing version tags' >&2
+            echo 'Error: Unexpected EOF while parsing version tags' >&2
             exit 1
         fi
 
@@ -411,27 +429,27 @@ if [ "$use_local_versions" == '/dev/null' ]; then
                 next_tag="${RAW_TAGS[$((idx + 1))]}"
                 first=$(printf '%s\n%s\n' "$tag" "$next_tag" | sort -V | head -n1)
                 if ! [[ "$first" == "$tag" ]]; then
-                    echo -e "\nerror: tags are NOT in ASC order: $tag > $next_tag" >&2
+                    echo -e "\nError: Tags are NOT in ASC order: $tag > $next_tag" >&2
                     exit 1
                 fi
             fi
         done
-        rm /tmp/gitlab-parsed.log 2> /dev/null
+        rm /tmp/gitlab-parsed.log &> /dev/null
         if [ $extract_versions_only -eq 1 ]; then
             echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
             if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
-                echo -e '\nnote: successfully export gitlab-ce released tags. please sort ASC order these tags. location: /tmp/gitlab-released-tags.txt'
+                echo -e '\nNote: Successfully exported gitlab-ce released tags. These tags are already sorted in ASC order. Location: /tmp/gitlab-released-tags.txt'
                 exit 0
             else
-                echo -e '\nerror: failed to export gitlab-ce released tags. internal error occurred.' >&2
+                echo -e '\nError: Failed to export gitlab-ce released tags. Internal error occurred.' >&2
                 rm /tmp/gitlab-released-tags.txt &> /dev/null
                 exit 1
             fi
         fi
     fi
 else
-    cat "$use_local_versions" | tr ' ' '\n' | tee "$use_local_versions" > /dev/null
-    RAW_TAGS_N=$(cat "$use_local_versions" | sort -V | grep -viE '(rc|nightly|latest)')
+    tr ' ' '\n' < "$use_local_versions" > "${use_local_versions}.tmp" && mv "${use_local_versions}.tmp" "$use_local_versions"
+    RAW_TAGS_N=$(sort -V "$use_local_versions" | grep -viE '(rc|nightly|latest)')
     count=1
     mapfile -t RAW_TAGS <<< "$RAW_TAGS_N"
 
@@ -453,7 +471,7 @@ else
             next_tag="${RAW_TAGS[$((idx + 1))]}"
             first=$(printf '%s\n%s\n' "$tag" "$next_tag" | sort -V | head -n1)
             if ! [[ "$first" == "$tag" ]]; then
-                echo -e "\nerror: tags are NOT in ASC order: $tag > $next_tag" >&2
+                echo -e "\nError: Tags are NOT in ASC order: $tag > $next_tag" >&2
                 exit 1
             fi
         fi
@@ -522,10 +540,10 @@ mapfile -t UPGRADE_POINTS_ARRAY < <(
 )
 
 if [ -z "$TARGET_URL" ]; then
-    echo 'TARGET_URL does not configured yet. please enter your GitLab server URL.'
-    echo 'ex: https://gitlab.com'
+    echo 'TARGET_URL is not configured yet. Please enter your GitLab server URL.'
+    echo 'e.g.: https://gitlab.com'
     echo -n '> '
-    TARGET_URL=$(read n && echo $n)
+    read TARGET_URL
     if [ -z "$TARGET_URL" ]; then
         echo 'User abort'
         exit 1
@@ -533,9 +551,9 @@ if [ -z "$TARGET_URL" ]; then
 fi
 
 if [ ${#UPGRADE_POINTS_ARRAY[@]} -eq 0 ]; then
-    echo "requirements already satisfied: v$CURRENT_VERSION"
+    echo "Requirements already satisfied: v$CURRENT_VERSION"
 
-    curl -sf -o /dev/null $TARGET_URL/explore/projects &> /dev/null
+    curl -sf -o /dev/null $TARGET_URL/explore/projects
     if [ $? -ne 0 ]; then
         echo "NOTE: If your GitLab server does not work properly, please edit $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' | tr ' ' '\n' | grep /etc/gitlab | awk -F ':' '{ print $1 }')/gitlab.rb file or 'docker exec -it gitlab /bin/bash && vi /etc/gitlab/gitlab.rb'"
     fi
@@ -543,8 +561,8 @@ if [ ${#UPGRADE_POINTS_ARRAY[@]} -eq 0 ]; then
 fi
 
 echo -e "\nWould you like to upgrade GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}?"
-echo "This action can not be undo. PLEASE BACKUP gitlab drive BEFORE STARTING UPDATE..."
-echo "You should update pointing release either. ROUTING COUNT: ${#UPGRADE_POINTS_ARRAY[@]}"
+echo "This action cannot be undone. PLEASE BACKUP GitLab drive BEFORE STARTING UPDATE..."
+echo "You should update pointing releases too. ROUTING COUNT: ${#UPGRADE_POINTS_ARRAY[@]}"
 if [ ${#UPGRADE_POINTS_ARRAY[@]} -lt 10 ]; then
     for idx in ${!UPGRADE_POINTS_ARRAY[@]}; do
         echo -e "\t$(expr $idx + 1). ${UPGRADE_POINTS_ARRAY[$idx]}"
@@ -554,21 +572,21 @@ if [ ${#UPGRADE_POINTS_ARRAY[@]} -le 5 ]; then
     echo -e "\ttraceroute: ${UPGRADE_POINTS_ARRAY[@]}"
 fi
 if [ $use_all_tags -eq 0 ]; then
-    echo "Follow this link to get more infomations: https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/?current=$(echo $CURRENT_VERSION | sed 's/-ce.0//')&target=$(echo ${UPGRADE_POINTS_ARRAY[-1]} | sed 's/-ce.0//')&distro=docker"
+    echo "Follow this link to get more information: https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/?current=$(echo $CURRENT_VERSION | sed 's/-ce.0//')&target=$(echo ${UPGRADE_POINTS_ARRAY[-1]} | sed 's/-ce.0//')&distro=docker"
 fi
 echo ''
-echo -e "\t- I understood which this action DID NOT SUPPORTed rollback"
-echo -e "\t- I understood which this action did not end shortly cuz ROUTING COUNT reason."
+echo -e "\t- I understood that this action DOES NOT SUPPORT rollback"
+echo -e "\t- I understood that this action may take a long time due to the ROUTING COUNT."
 echo -e "\t- I checked container restart policy: $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)"
 echo -e "\t- I checked container PORTS: $(docker inspect gitlab --format='{{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostPort}} {{end}}')"
 echo -e "\t- I checked container DRIVE: $(docker inspect gitlab --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
 echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec gitlab grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
 echo -e "\t- I checked gitlab backup_path in gitlab.rb file: $(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{print $2}' | sed 's/\"//g' | sed 's/^ //')"
 if [ $(docker exec gitlab gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
-    echo -e "\t- I checked this gitlab server does not configured any runners yet."
+    echo -e "\t- I checked this GitLab server has not configured any runners yet."
 else
     echo ''
-    echo -e "\t- I checked this gitlab server was configured by following runners:"
+    echo -e "\t- I checked this GitLab server is configured with the following runners:"
     docker exec gitlab gitlab-psql -c "SELECT id, description, contacted_at, active FROM ci_runners ORDER BY id;"
     echo ''
 fi
@@ -578,29 +596,29 @@ else
     echo -e "\t- I checked PAGE_SIZE and TARGET_URL values: PAGE_SIZE: $PAGE_SIZE, TARGET_URL: $TARGET_URL"
 fi
 
-echo -en "\nI accepted above notice and continue this job (y/N) > "
+echo -en "\nI accept the above notice and continue this job (y/N) > "
 read n
 if ! [ "$n" == "y" -o "$n" == "Y" ]; then
     echo 'User abort' >&2
     exit 1
 fi
 
-send_discord_webhook "NOTE" "Updating GitLab now!" "GitLab will be upgrade $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
+send_discord_webhook "NOTE" "Updating GitLab now!" "GitLab will be upgraded from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 auto_restart_enabled=$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)
 
 if ! [ -r /tmp/upgrade-gitlab-ce.lock ]; then
-    echo "Creating backups for $CNT_VERSION. please wait until backup process is completed..."
+    echo "Creating backups for $CURRENT_VERSION. Please wait until backup process is completed..."
     docker exec gitlab gitlab-backup create
-    BACKUP_DIR=$(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{ print $2 }' | sed 's/\"//g')
-    docker exec gitlab sh -c "cp /etc/gitlab/gitlab-secrets.json $BACKUP_DIR/gitlab-secrets.json.${CNT_VERSION}-backup"
-    docker exec gitlab sh -c "cp /etc/gitlab/gitlab.rb $BACKUP_DIR/gitlab.rb.${CNT_VERSION}-backup"
+    BACKUP_DIR=$(docker exec gitlab grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{ print $2 }' | sed 's/\"//g' | sed 's/^ //')
+    docker exec gitlab sh -c "cp /etc/gitlab/gitlab-secrets.json $BACKUP_DIR/gitlab-secrets.json.${CURRENT_VERSION}-backup"
+    docker exec gitlab sh -c "cp /etc/gitlab/gitlab.rb $BACKUP_DIR/gitlab.rb.${CURRENT_VERSION}-backup"
 fi
 
 index=1
 CNT_VERSION=$CURRENT_VERSION
 for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
-    send_discord_webhook "INFO" "GitLab server is growing now! ($index/${#UPGRADE_POINTS_ARRAY[@]})" "Please wait until upgrading process is done."
-    echo "updating $CNT_VERSION to $ver... ($index/${#UPGRADE_POINTS_ARRAY[@]})"
+    send_discord_webhook "INFO" "GitLab server is upgrading now! ($index/${#UPGRADE_POINTS_ARRAY[@]})" "Please wait until upgrading process is done."
+    echo "Updating $CNT_VERSION to $ver... ($index/${#UPGRADE_POINTS_ARRAY[@]})"
     docker ps --format "{{.Names}}" | grep -q '^gitlab$'
     if [ $? -ne 0 ]; then
         docker start gitlab &> /dev/null
@@ -636,7 +654,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     docker pull gitlab/gitlab-ce:$ver
     docker run -d --name gitlab $VOLUMES $PORTS gitlab/gitlab-ce:$ver
 
-    echo -n "waiting until gitlab/gitlab-ce:$ver server to boot... "
+    echo -n "waiting until gitlab/gitlab-ce:$ver server boots... "
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
@@ -661,7 +679,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo 'done'
 
     if [ $index -lt ${#UPGRADE_POINTS_ARRAY[@]} ]; then
-        echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index - 1))"
+        echo "gitlab-ce $ver update completed. remaining jobs: $((${#UPGRADE_POINTS_ARRAY[@]} - index))"
     else
         echo "gitlab-ce $ver update completed."
         send_discord_webhook "NOTE" "Upgrade process now completed!" "Please wait until GitLab server is ready."
@@ -673,11 +691,11 @@ done
 check_gitlab_server_healthy
 
 if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ] && [ "$auto_restart_enabled" == 'no' ]; then
-    echo "would you like to change RestartPolicy from $auto_restart_enabled to always?"
+    echo "Would you like to change RestartPolicy from $auto_restart_enabled to always?"
     echo 'AVAILABLE OPTIONS'
     echo -e 'no\t\t\t\tDo not automatically restart the container. (Default, Current)'
     echo -e 'on-failure[:max-retries]\tRestart the container if it exits due to an error, which manifests as a non-zero exit code.'
-    echo -e 'always\t\t\t\tAlways restart the container if it stops. If it is manually stopped, it is restarted only when Docker daemon restarts or the container itself is manually restarted. '
+    echo -e 'always\t\t\t\tAlways restart the container if it stops. If it is manually stopped, it is restarted only when Docker daemon restarts or the container itself is manually restarted.'
     echo -e 'unless-stopped\t\t\tSimilar to always, except that when the container is stopped (manually or otherwise), it is not restarted even after Docker daemon restarts.'
     echo -n '> '
     read n
@@ -690,13 +708,13 @@ if [ "$auto_restart_enabled" == "$(docker inspect --format='{{.HostConfig.Restar
             ;;
     esac
 elif [ "$auto_restart_enabled" != "$(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab)" ]; then
-    echo "update gitlab RestartPolicy $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled"
+    echo "Updating gitlab RestartPolicy from $(docker inspect --format='{{.HostConfig.RestartPolicy.Name}}' gitlab) to $auto_restart_enabled"
     docker update --restart=$auto_restart_enabled gitlab &> /dev/null
 fi
 
 echo "Successfully updated GitLab server from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
 echo "Updated traceroute: ${UPGRADE_POINTS_ARRAY[@]}"
-send_discord_webhook "NOTE" "Successfully upgrade GitLab server!" "GitLab version changed $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
-rm /tmp/upgrade-gitlab-ce.lock 2> /dev/null
+send_discord_webhook "NOTE" "Successfully upgraded GitLab server!" "GitLab version changed from $CURRENT_VERSION to ${UPGRADE_POINTS_ARRAY[-1]}"
+rm /tmp/upgrade-gitlab-ce.lock &> /dev/null
 
 exit 0
