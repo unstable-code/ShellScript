@@ -1,22 +1,4 @@
 #!/bin/bash
 
-window_server=$(inxi -G | grep Display | awk '{ print $2 }')
-if [ "$window_server" == "x11" ]; then
-    if [ -n "$DISCORD_BOT_PLAYERCTL" ]; then
-        /usr/bin/python "$HOME/Documents/Release/ShellScript/Universal/Discord/obs-recording-stopped.py" 2>&1 &
-        bot_pid=$!
-        if [ -r /proc/$bot_pid/exe ]; then
-            /usr/bin/obs --disable-shutdown-check $@
-            kill $bot_pid
-        else
-            echo 'error: unable to load `obs-recording-stopped.py`. see output.' >&2
-            exit 1
-        fi
-    else
-        echo 'error: unable to load `obs-recording-stopped.py`. API Key is missing.' >&2
-        notify-send --action='1=OK' 'Unable to launch obs-studio.' 'The Discord API Key does not set yet. Please enter your API Key in `DISCORD_BOT_PLAYERCTL` environment value.'
-        exit 1
-    fi
-else
-    /usr/bin/obs --disable-shutdown-check $@
-fi
+rm -rf $HOME/.config/obs-studio/.sentinel &> /dev/null
+/usr/bin/obs --disable-shutdown-check $@
