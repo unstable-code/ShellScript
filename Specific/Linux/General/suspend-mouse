@@ -1,0 +1,23 @@
+#!/bin/bash
+export USB_CONTROLLER="0000:00:14.0"
+TARGET_DEV="1-4"
+
+case "$1" in
+    off)
+        if [ -e "/sys/bus/usb/devices/$TARGET_DEV" ]; then
+            echo 'auto' | sudo tee /sys/bus/usb/devices/$TARGET_DEV/power/control
+            echo '500' | sudo tee /sys/bus/usb/devices/$TARGET_DEV/power/autosuspend_delay_ms
+            sleep 0.5
+            echo "$TARGET_DEV" | sudo tee /sys/bus/usb/drivers/usb/unbind
+        fi
+        ;;
+    on)
+        echo "$USB_CONTROLLER" | sudo tee /sys/bus/pci/drivers/xhci_hcd/unbind
+        sleep 1
+        echo "$USB_CONTROLLER" | sudo tee /sys/bus/pci/drivers/xhci_hcd/bind
+        ;;
+    *)
+        echo "Usage: $0 {on|off}" >&2
+        exit 1
+        ;;
+esac
