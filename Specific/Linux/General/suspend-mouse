@@ -1,23 +1,40 @@
 #!/bin/bash
-export USB_CONTROLLER="0000:00:14.0"
+PIPE="/run/mouse-control.fifo"
+USB_CONTROLLER="0000:00:14.0"
 TARGET_DEV="1-4"
 
-case "$1" in
-    off)
-        if [ -e "/sys/bus/usb/devices/$TARGET_DEV" ]; then
-            echo 'auto' | sudo tee /sys/bus/usb/devices/$TARGET_DEV/power/control
-            echo '500' | sudo tee /sys/bus/usb/devices/$TARGET_DEV/power/autosuspend_delay_ms
-            sleep 0.5
-            echo "$TARGET_DEV" | sudo tee /sys/bus/usb/drivers/usb/unbind
-        fi
-        ;;
-    on)
-        echo "$USB_CONTROLLER" | sudo tee /sys/bus/pci/drivers/xhci_hcd/unbind
-        sleep 1
-        echo "$USB_CONTROLLER" | sudo tee /sys/bus/pci/drivers/xhci_hcd/bind
-        ;;
-    *)
-        echo "Usage: $0 {on|off}" >&2
-        exit 1
-        ;;
-esac
+# Root 권한 체크
+[ "$(id -u)" -ne 0 ] && echo "Error: Need root" >&2 && exit 1
+
+# 파이프 초기화 (안전한 블록 처리)
+[ -p "$PIPE" ] || { mkfifo "$PIPE" && chown root:hm "$PIPE" && chmod 660 "$PIPE"; }
+
+echo "Mouse control daemon is listening on $PIPE..."
+
+while true; do
+    # 이 루프는 파이프에 데이터가 들어오면 깨어납니다.
+    while read -r line; do
+        case "$line" in
+            on)
+            # 깨울 때만 PCI 리셋을 수행하여 '강제 복구'
+            echo "[$(date)] INFO: PCI Resetting $USB_CONTROLLER for Resume..."
+            echo "$USB_CONTROLLER" > /sys/bus/pci/drivers/xhci_hcd/unbind
+            sleep 1.2
+            echo "$USB_CONTROLLER" > /sys/bus/pci/drivers/xhci_hcd/bind
+            ;;
+        off)
+            # 잠글 때는 리셋 없이 '소등 및 경로 해제'만 수행
+            if [ -e "/sys/bus/usb/devices/$TARGET_DEV" ]; then
+                echo "[$(date)] INFO: Suspending $TARGET_DEV for Lock..."
+                echo 'auto' > "/sys/bus/usb/devices/$TARGET_DEV/power/control"
+                echo '0' > "/sys/bus/usb/devices/$TARGET_DEV/power/autosuspend_delay_ms"
+                sleep 0.5
+                echo "$TARGET_DEV" > /sys/bus/usb/drivers/usb/unbind
+            else
+                echo "[$(date)] WARN: Mouse already absent, ensuring unbind."
+                echo "$TARGET_DEV" > /sys/bus/usb/drivers/usb/unbind 2>/dev/null
+            fi
+            ;;
+        esac
+    done < "$PIPE"
+done
