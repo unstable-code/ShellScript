@@ -1,10 +1,11 @@
 #!/bin/bash
 PIPE="/run/mouse-control.fifo"
 USB_CONTROLLER="0000:00:14.0"
-TARGET_DEV="1-4"
+TARGET_DEV="$(grep -l "1532" /sys/bus/usb/devices/*/idVendor 2>/dev/null | xargs -I {} dirname {} | xargs -I {} grep -l "0099" {}/idProduct | xargs -I {} dirname {} | xargs -I {} basename {})"
 
 # Root 권한 체크
 [ "$(id -u)" -ne 0 ] && echo "Error: Need root" >&2 && exit 1
+[ -z "$TARGET_DEV" ] && echo "[$(date)] ERROR: Razer Basilisk V3 not found. Check connection and restart service." >&2 && exit 1
 
 # 파이프 초기화 (안전한 블록 처리)
 [ -p "$PIPE" ] || { mkfifo "$PIPE" && chown root:hm "$PIPE" && chmod 660 "$PIPE"; }
