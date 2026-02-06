@@ -137,21 +137,29 @@ for i in "${!params[@]}"; do
         fi
     fi
 
-    current_bom=$(head -c 3 "${params[$i]}")
-    target_bom=$'\xef\xbb\xbf'
+    if [ -n "$constantBOM" ]; then
+        trap 'rm -f *.tmp 2>/dev/null' EXIT
+        current_charset=$(file -bI "${params[$i]}" | sed -n 's/.*charset=\([^; ]*\).*/\1/p')
+        current_bom=$(head -c 3 "${params[$i]}")
+        target_bom=$'\xef\xbb\xbf'
 
-    if [ "$constantBOM" == "ADD" ]; then
-        if [ "$current_bom" != "$target_bom" ]; then
-            printf '%s' "$target_bom" > "${params[$i]}.tmp"
-            cat "${params[$i]}" >> "${params[$i]}.tmp"
-            mv "${params[$i]}.tmp" "${params[$i]}"
-            echo "${params[$i]}: Added UTF-8 BOM."
-        fi
-    elif [ "$constantBOM" == "REMOVE" ]; then
-        if [ "$current_bom" == "$target_bom" ]; then
-            tail -c +4 "${params[$i]}" > "${params[$i]}.tmp"
-            mv "${params[$i]}.tmp" "${params[$i]}"
-            echo "${params[$i]}: Removed UTF-8 BOM."
+        if [[ "$current_charset" == "utf-8" || "$current_charset" == "us-ascii" ]]; then
+            if [ "$constantBOM" == "ADD" ]; then
+                if [ "$current_bom" != "$target_bom" ]; then
+                    printf "$target_bom" > "${params[$i]}.tmp"
+                    cat "${params[$i]}" >> "${params[$i]}.tmp"
+                    mv "${params[$i]}.tmp" "${params[$i]}"
+                    echo "${params[$i]}: Added UTF-8 BOM."
+                fi
+            elif [ "$constantBOM" == "REMOVE" ]; then
+                if [ "$current_bom" == "$target_bom" ]; then
+                    tail -c +4 "${params[$i]}" > "${params[$i]}.tmp"
+                    mv "${params[$i]}.tmp" "${params[$i]}"
+                    echo "${params[$i]}: Removed UTF-8 BOM."
+                fi
+            fi
+        else
+            echo "skipping ${params[$i]}. reason: not a UTF-8 file (Current: $current_charset)." >&2
         fi
     fi
 done
