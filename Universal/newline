@@ -24,7 +24,6 @@ elif [ "$1" == "-i" -o "$1" == "--info" ]; then
                 binary_check=$(file -bL --mime "${params[$i]}" | grep "binary")
                 if [ $? -eq 0 ]; then
                     echo "skipping ${params[$i]} file. reason: binary file." >&2
-                    logger --tag newline --priority user.warn "skipping ${params[$i]} file due to binary type"
                     continue
                 fi
                 file "${params[$i]}" 2> /dev/null
@@ -32,11 +31,9 @@ elif [ "$1" == "-i" -o "$1" == "--info" ]; then
                 if [ $? -eq 0 ]; then
                     xxd -l 32 "${params[$i]}"
                 else
-                    logger --tag newline --priority user.notice "xxd command not found. please install vim"
                     echo "Please install vim to use xxd command." >&2
                 fi
                 newline=$(expr $newline + 1)
-                logger --tag newline --priority user.info "viewing ${params[$i]} file"
             else
                 echo "unable to locate ${params[$i]} file. no such file or directory" >&2
             fi
@@ -51,6 +48,8 @@ elif [ "$1" == "-h" -o "$1" == "--help" ]; then
     echo -e ' -i, --info FILEs\tdisplay provide file type and properties'
     echo -e '     --type=EOL\t\tlimiting `EOL` type when using converter'
     echo -e '\t\t\t`EOL` only accepted `CRLF` and `LF` (NAK `\\r\\n` or `\\n`)'
+    echo -e ' --bom\t\t\tensure file has UTF-8 BOM'
+    echo -e ' --nobom\t\tremove UTF-8 BOM from file'
     echo -e ' FILEs\t\t\tconverting files EOL in provided params'
     echo -e '\nEXIT STATUS'
     echo -e ' 0\t operation Successful'
@@ -73,6 +72,7 @@ elif [ "$1" == "-h" -o "$1" == "--help" ]; then
 fi
 
 constantEOF=""
+constantBOM=""
 if [ -t 0 ]; then
     params=("${@}")
 else
@@ -83,12 +83,15 @@ for i in "${!params[@]}"; do
     if [[ "${params[$i]}" == "-"* ]]; then
         if [ "${params[$i]}" == "--type=LF" -o "${params[$i]}" == "--type=lf" ]; then
             constantEOF="LF"
-            logger --tag newline --priority user.debug "locking EOF type to LF"
         elif [ "${params[$i]}" == "--type=CRLF" -o "${params[$i]}" == "--type=crlf" ]; then
             constantEOF="CRLF"
-            logger --tag newline --priority user.debug "locking EOF type to CRLF"
+        elif [ "${params[$i]}" == "--bom" ]; then
+            constantBOM="ADD"
+        elif [ "${params[$i]}" == "--nobom" ]; then
+            constantBOM="REMOVE"
         else
-            logger --tag newline --priority user.warn "unknown EOF type: ${params[$i]}. skipping."
+            echo "error: unknown ${params[$i]} parameter. Aborting." >&2
+            exit 1
         fi
         continue
     fi
@@ -112,52 +115,44 @@ for i in "${!params[@]}"; do
 
     binary_check=$(file -bL --mime "${params[$i]}" | grep "binary")
     if [ $? -eq 0 ]; then
-        logger --tag newline --priority user.warn "skipping ${params[$i]} file due to binary type"
         echo "skipping ${params[$i]} file. reason: binary file." >&2
         continue
     fi
 
-    file -b "${params[$i]}" 2> /dev/null | grep "text" 2> /dev/null | grep "CRLF" &> /dev/null
-    if [ $? == 0 ]; then
-        if [ "$constantEOF" == "CRLF" ]; then
-            logger --tag newline --priority user.debug "skipping ${params[$i]} file due to requirement already satisfied: CRLF"
-            echo "skipping ${params[$i]} file. reason: requirement already satisfied.">&2
-            continue
-        fi
-        sed -i 's/\r$//' "${params[$i]}" &> /dev/null
-        if [ $? == 0 ]; then
-            logger --tag newline --priority user.info "successfully converted ${params[$i]} file CRLF to LF"
-            echo "${params[$i]}: operation complete. EOL was converted CRLF to LF."
-        else
-            logger --tag newline --priority user.warn "unable to convert ${params[$i]} file"
-            echo "unable to convert ${params[$i]} file. reason: access denied.">&2
-        fi
+    file_info=$(file -b "${params[$i]}")
+    is_crlf=$(echo "$file_info" | grep "CRLF")
+
+    if echo "$file_info" | grep -q "CR" && ! echo "$file_info" | grep -q "LF"; then
+        echo "unable to convert ${params[$i]}. reason: unsupported EOL CR(Macintosh) type." >&2
         continue
     fi
 
-    file -b "${params[$i]}" 2> /dev/null | grep "text" 2> /dev/null | grep "CR" &> /dev/null
-    if [ $? == 0 ]; then
-        logger --tag newline --priority user.err "unable to convert ${params[$i]} file with CR type"
-        echo "unable to convert ${params[$i]} file. reason: unsupported EOL CR(Macintosh) type.">&2
-        continue
+    if [ "$constantEOF" == "LF" ]; then
+        if [ -n "$is_crlf" ]; then
+            sed -i 's/\r$//' "${params[$i]}" && echo "${params[$i]}: converted CRLF to LF."
+        fi
+    elif [ "$constantEOF" == "CRLF" ]; then
+        if [ -z "$is_crlf" ]; then
+            sed -i 's/$/\r/' "${params[$i]}" && echo "${params[$i]}: converted LF to CRLF."
+        fi
     fi
 
-    file -b "${params[$i]}" 2> /dev/null | grep "text" &> /dev/null
-    if [ $? == 0 ]; then
-        if [ "$constantEOF" == "LF" ]; then
-            logger --tag newline --priority user.debug "skipping ${params[$i]} file due to requirement already satisfied: LF"
-            echo "skipping ${params[$i]} file. reason: requirement already satisfied.">&2
-            continue
+    current_bom=$(head -c 3 "${params[$i]}")
+    target_bom=$'\xef\xbb\xbf'
+
+    if [ "$constantBOM" == "ADD" ]; then
+        if [ "$current_bom" != "$target_bom" ]; then
+            printf '%s' "$target_bom" > "${params[$i]}.tmp"
+            cat "${params[$i]}" >> "${params[$i]}.tmp"
+            mv "${params[$i]}.tmp" "${params[$i]}"
+            echo "${params[$i]}: Added UTF-8 BOM."
         fi
-        sed -i 's/$/\r/' "${params[$i]}" &> /dev/null
-        if [ $? == 0 ]; then
-            logger --tag newline --priority user.info "successfully converted ${params[$i]} file LF to CRLF"
-            echo "${params[$i]}: operation complete. EOL was converted LF to CRLF."
-        else
-            logger --tag newline --priority user.warn "unable to convert ${params[$i]} file"
-            echo "unable to convert ${params[$i]} file. reason: access denied.">&2
+    elif [ "$constantBOM" == "REMOVE" ]; then
+        if [ "$current_bom" == "$target_bom" ]; then
+            tail -c +4 "${params[$i]}" > "${params[$i]}.tmp"
+            mv "${params[$i]}.tmp" "${params[$i]}"
+            echo "${params[$i]}: Removed UTF-8 BOM."
         fi
-        continue
     fi
 done
 
