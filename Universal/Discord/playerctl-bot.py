@@ -5,7 +5,7 @@ from discord import app_commands
 
 class aclient(discord.Client):
     def __init__(self):
-        super().__init__(intents = discord.Intents.all())
+        super().__init__(intents = discord.Intents.default())
         self.synced = False
     async def on_ready(self):
         await self.wait_until_ready()
@@ -27,11 +27,10 @@ async def status(interaction: discord.Interaction):
             text=True
         )
         if not result:
-            result = "🎵 현재 재생 중인 트랙이 없습니다."
+            result = "⚠️ playerctl 실행에 실패했습니다."
         await interaction.response.send_message(f"### 🎵 현재 재생 정보:\n```\n{result}\n```", ephemeral=True)
     except subprocess.CalledProcessError:
-        await interaction.response.send_message("⚠️ playerctl 실행에 실패했습니다.", ephemeral=True)
-        sys.exit(1)
+        await interaction.response.send_message("🎵 현재 재생 중인 트랙이 없습니다.", ephemeral=True)
     except FileNotFoundError:
         await interaction.response.send_message("❌ 시스템에 playerctl이 설치되어 있지 않습니다.", ephemeral=True)
         sys.exit(1)
