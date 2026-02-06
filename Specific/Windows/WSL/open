@@ -2,65 +2,67 @@
 
 failure=false
 forceTOTALCMD=false
+TOTALCMD_PATH="/mnt/c/Program Files/totalcmd/TOTALCMD64.exe"
 
+# 1. 실행 권한 및 마운트 체크
 if [ ! -x /mnt/c/Windows/explorer.exe ]; then
-    echo "open: fatal error: unable to access daemon. please mount the Windows system volume C:\\.">&2
+    echo "open: fatal error: unable to access daemon. please mount C: drive.">&2
     exit 1
 fi
 
-if [ x"$1" == x ]; then
+# 2. 도움말 출력 함수화 (중복 제거)
+show_help() {
     echo "Usage: open [option] <src>"
-    if [ -x /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe ]; then
-        echo -e "\t--totalcmd\t open file using totalcmd not explorer."
-    fi
-    echo -e " -h \t--help\t\t show help"
+    [ -x "$TOTALCMD_PATH" ] && echo -e "  --totalcmd\t open folder using Total Commander."
+    echo -e "  -h, --help\t show help"
+}
+
+if [ -z "$1" ]; then
+    show_help
     exit 1
 fi
 
-if [ "$1" == "-h" -o "$1" == "--help" ]; then
-    echo "Usage: open [option] <src>"
-    if [ -x /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe ]; then
-        echo -e "\t--totalcmd\t open file using totalcmd not explorer."
-    fi
-    echo -e " -h \t--help\t\t show help"
-    exit 0
-fi
+# 3. 옵션 먼저 파싱 (파일 인자와 분리)
+files=()
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) show_help; exit 0 ;;
+        --totalcmd) forceTOTALCMD=true ;;
+        -*) echo "open: unknown param: $arg">&2; exit 1 ;;
+        *) files+=("$arg") ;;
+    esac
+done
 
-params=("${@}")
+# 4. 파일/URL 처리 루프
+for item in "${files[@]}"; do
+    # 심볼릭 링크일 경우 실제 경로 추출
+    [ -e "$item" ] && target_path=$(readlink -f "$item") || target_path="$item"
 
-for i in "${!params[@]}"; do
-    if [[ "${params[$i]}" == "-"* ]]; then
-        if [ "${params[$i]}" == "--totalcmd" ]; then
-            forceTOTALCMD=true
-        else
-            echo "open: unknown params: ${params[$i]}.">&2
-            exit 1
-        fi
-        continue
-    fi
+    # 윈도우 경로로 변환 시도
+    winPath=$(wslpath -w "$target_path" 2> /dev/null)
 
-    targetDir=$(wslpath -w "${params[$i]}" 2> /dev/null)
-    if [ $? != 0 ]; then
-        if [[ "${params[$i]}" == *"://"* ]]; then
-            explorer.exe "${params[$i]}"
-        else
-            echo "open: ${params[$i]}: No such file or directory">&2
-            failure=true
-        fi
-    else
-        if [ -x /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe -a $forceTOTALCMD == "true" ]; then
-            powershell.exe -Command "if ( -not (Test-Path \"$targetDir\" -PathType Container) ) {exit 1}" &> /dev/null
-            if [ $? == 0 ]; then
-                /mnt/c/Program\ Files/totalcmd/TOTALCMD64.exe -t "$targetDir"
+    if [ $? -eq 0 ]; then
+        # 윈도우 파일/폴더인 경우
+        if [ "$forceTOTALCMD" == "true" ] && [ -x "$TOTALCMD_PATH" ]; then
+            # 디렉토리인지 확인 (powershell 호출 대신 리눅스에서 판단 후 넘김)
+            if [ -d "$target_path" ]; then
+                # Total Commander 실행 ( /O /T 옵션은 사용자 취향에 따라 추가 )
+                "$TOTALCMD_PATH" /O /T /L="$winPath"
             else
-                explorer.exe "$targetDir"
+                explorer.exe "$winPath"
             fi
         else
-            explorer.exe "$targetDir"
+            explorer.exe "$winPath"
+        fi
+    else
+        # URL 형식인지 확인 (http://, https://, mailto: 등)
+        if [[ "$item" == *"://"* ]]; then
+            explorer.exe "$item"
+        else
+            echo "open: $item: No such file or directory">&2
+            failure=true
         fi
     fi
 done
 
-if [ "$failure" == "true" ]; then
-    exit 1
-fi
+[ "$failure" == "true" ] && exit 1

@@ -1,51 +1,43 @@
 #!/bin/bash
 
-target=$(basename $0)
+target=$(basename "$0")
 currentPath="$(pwd)"
 
-echo "$(readlink -f "$currentPath")" | grep "/mnt/" &> /dev/null
-if [ $? -ne 0 ]; then
-# WSL executable binary files
-    if [ "$target" == "git" ]; then
-        if [ -x /usr/bin/git ]; then
-            /usr/bin/git --version | grep "windows" &> /dev/null
-            if [ $? -eq 0 ]; then
-                exit 1
-            else
-                /usr/bin/git "$@"
-            fi
-        fi
-    elif [ "$target" == "gpg" ]; then
-        if [ -x /usr/bin/gpg ]; then
-            /usr/bin/gpg --version | grep Home | awk -F ': ' '{ print $2 }' | grep -vE '^/c/Users/'
-            if [ $? -eq 0 ]; then
-                /usr/bin/gpg "$@"
-            else
-                exit 1
-            fi
-        fi
+physicalPwd=$(readlink -f "$currentPath")
+is_win_path=0
+
+for arg in "$@"; do
+    if [ -e "$arg" ]; then
+        realArg=$(readlink -f "$arg")
+        [[ "$realArg" == /mnt/* ]] && is_win_path=1 && break
     fi
-else
-# Windows executable binary files
-    if [ "$target" == "git" ]; then
-        if [ -x /usr/bin/git_win ]; then
-            /usr/bin/git_win --version | grep "windows" &> /dev/null
-            if [ $? -eq 0 ]; then
-                /usr/bin/git_win "$@"
-            else
-                exit 1
-            fi
-        fi
-    elif [ "$target" == "gpg" ]; then
-        if [ -x /usr/bin/gpg_win ]; then
-            /usr/bin/gpg_win --version | grep Home | awk -F ': ' '{ print $2 }' | grep -E '^/c/Users/'
-            if [ $? -eq 0 ]; then
-                /mnt/c/Program\ Files/Git/git-bash.exe -c "gpg $@"
-                /usr/bin/gpg_win "$@"
-            else
-                exit 1
-            fi
-        fi
-    fi
+done
+
+if [ $is_win_path -eq 0 ]; then
+    [[ "$physicalPwd" == /mnt/* ]] && is_win_path=1
 fi
 
+if [ $is_win_path -eq 0 ]; then
+    # === WSL Native (Linux) ===
+    if [ "$target" == "git" ] && [ -x /usr/bin/git ]; then
+        /usr/bin/git "$@"
+    elif [ "$target" == "gpg" ] && [ -x /usr/bin/gpg ]; then
+        /usr/bin/gpg "$@"
+    fi
+else
+    # === Windows Interop ===
+    win_args=()
+    for arg in "$@"; do
+        if [[ "$arg" == /mnt/* ]] || [ -e "$arg" ]; then
+            win_args+=("$(wslpath -w "$(readlink -f "$arg")" 2>/dev/null || echo "$arg")")
+        else
+            win_args+=("$arg")
+        fi
+    done
+
+    if [ "$target" == "git" ] && [ -x /usr/bin/git_win ]; then
+        /usr/bin/git_win "${win_args[@]}"
+    elif [ "$target" == "gpg" ] && [ -x /usr/bin/gpg_win ]; then
+        /mnt/c/Program\ Files/Git/git-bash.exe -c "gpg ${win_args[*]}"
+    fi
+fi
