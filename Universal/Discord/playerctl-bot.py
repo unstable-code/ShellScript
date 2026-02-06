@@ -20,6 +20,9 @@ tree = app_commands.CommandTree(client)
 # 슬래시 옵션 리스트
 @tree.command(name="status", description="현재 재생 중인 음악 정보를 출력합니다.")
 async def status(interaction: discord.Interaction):
+    if interaction.user.id != owner_id:
+        await interaction.response.send_message("⛔ 권한이 없습니다. 등록된 사용자만 실행 가능합니다.", ephemeral=True)
+        return
     try:
         # playerctl metadata 실행
         result = subprocess.check_output(
@@ -38,9 +41,11 @@ async def status(interaction: discord.Interaction):
 
 # 봇 실행
 token = os.environ.get("DISCORD_BOT_PLAYERCTL")
-if token:
+owner_id = os.environ.get("DISCORD_BOT_PLAYERCTL_OWNER_ID")
+if token and owner_id:
+    owner_id = int(owner_id)
     client.run(token)
 else:
-    print("❌ 환경변수 'DISCORD_BOT_PLAYERCTL'이 설정되지 않았습니다. 비공개 토큰을 설정해 주세요.")
+    print("❌ 환경변수 'DISCORD_BOT_PLAYERCTL' 또는 'DISCORD_BOT_PLAYERCTL_OWNER_ID'가 설정되지 않았습니다. 비공개 토큰을 설정해 주세요.")
     sys.exit(1)
 

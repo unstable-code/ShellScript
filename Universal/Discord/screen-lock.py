@@ -20,6 +20,9 @@ tree = app_commands.CommandTree(client)
 # 슬래시 옵션 리스트
 @tree.command(name="lock", description="화면 잠금을 실행합니다.")
 async def status(interaction: discord.Interaction):
+    if interaction.user.id != owner_id:
+        await interaction.response.send_message("⛔ 권한이 없습니다. 등록된 사용자만 실행 가능합니다.", ephemeral=True)
+        return
     try:
         if subprocess.run(["pgrep", "-x", "swaylock"], stderr=subprocess.DEVNULL).returncode == 0:
             await interaction.response.send_message("⚠️ swaylock 실행에 실패했습니다. 이미 swaylock 이 실행 중입니다.", ephemeral=True)
@@ -40,9 +43,11 @@ if subprocess.run(["pgrep", "-x", "sway"], stdout=subprocess.DEVNULL, stderr=sub
     sys.exit(1)
 
 token = os.environ.get("DISCORD_BOT_SWAY")
-if token:
+owner_id = os.environ.get("DISCORD_BOT_SWAY_OWNER_ID")
+if token and owner_id:
+    owner_id = int(owner_id)
     client.run(token)
 else:
-    print("❌ 환경변수 'DISCORD_BOT_SWAY'가 설정되지 않았습니다. 비공개 토큰을 설정해 주세요.")
+    print("❌ 환경변수 'DISCORD_BOT_SWAY' 또는 'DISCORD_BOT_SWAY_OWNER_ID'가 설정되지 않았습니다. 비공개 토큰을 설정해 주세요.")
     sys.exit(1)
 
