@@ -8,8 +8,7 @@ if [ -r "$HOME/.config/chrome-flags.conf" ]; then
     chrome_flags=$(grep -v '^\s*#' "$HOME/.config/chrome-flags.conf" | xargs)
 fi
 
-ps -ef | grep -v grep | grep spoofdpi &> /dev/null
-if [ $? -ne 0 ]; then
+if ! pgrep -f spoofdpi &> /dev/null; then
     spoofdpi --listen-addr=127.0.0.1:12345 &
     spoofdpi_pid=$!
     sleep 5
@@ -21,8 +20,7 @@ target_app_pid=$!
 
 if [ $launched -eq 1 ]; then
     while :; do
-        ps -ef | grep -v grep | grep -v "$(basename "$0")" | grep "$target_app_pid" &> /dev/null
-        if [ $? -ne 0 ]; then
+        if ! kill -0 "$target_app_pid" &> /dev/null; then
             kill $spoofdpi_pid
             break
         fi

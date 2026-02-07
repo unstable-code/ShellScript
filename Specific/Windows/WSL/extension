@@ -1,17 +1,14 @@
 #!/bin/bash
 
-which nvim &> /dev/null
-if [ $? -eq 0 ]; then
-    nvim --version > /dev/null
-    if [ $? -ne 0 ]; then
+if which nvim &> /dev/null; then
+    if ! nvim --version > /dev/null; then
         echo 'neovim package was corrupted.'
         echo 'Please re-install neovim in below link.'
         echo -e "\thttps://github.com/neovim/neovim/releases/latest"
     else
         local=$(nvim --version | grep NVIM | cut -d- -f1 | sed 's/NVIM v//')
         release=$(curl -fsSL https://github.com/neovim/neovim/releases/latest | grep '<title>' | awk '{ print $3  }')
-        dpkg --compare-versions "$local" lt "$release"
-        if [ $? -eq 0 ]; then
+        if dpkg --compare-versions "$local" lt "$release"; then
             if [ -d ~/snap/neovim ]; then
                 cd ~/snap/neovim || exit
                 git pull --rebase origin "$(git branch --show-current)"
@@ -27,61 +24,50 @@ if [ $? -eq 0 ]; then
     fi
 fi
 
-which wsl.exe &>/dev/null
-if [ $? == 0 ]; then
+if which wsl.exe &>/dev/null; then
     wsl.exe --status
     wsl.exe --version
     echo 'Please enter `wsl.exe --update` command if you wanna check WSL updates.'
 fi
 
-which winget.exe &>/dev/null
-if [ $? == 0 ]; then
+if which winget.exe &>/dev/null; then
 #   cmd.exe "/c" "winget.exe upgrade --all"
     cmd.exe "/c" "winget.exe upgrade"
     echo -e "\e[m"
 fi
 
-which juliaup &> /dev/null
-if [ $? -eq 0 ]; then
+if which juliaup &> /dev/null; then
     juliaup update
 fi
 
-which docker &> /dev/null
-if [ $? -eq 0 ]; then
+if which docker &> /dev/null; then
     docker image prune -f
     docker volume prune -f
 fi
 
-which zsh &>/dev/null
-if [ $? == 0 ]; then
-    /bin/zsh -c "source ~/.zshrc; which omz > /dev/null 2>&1"
-    if [ $? == 0 ]; then
+if which zsh &>/dev/null; then
+    if /bin/zsh -c "source ~/.zshrc; which omz > /dev/null 2>&1"; then
         /bin/zsh -c "source ~/.zshrc; omz update" &
         targetPID=$!
         for (( i=0 ; i<=10 ; i++ )); do
-            ps | grep $targetPID &> /dev/null
-            if [ $? -ne 0 ]; then
+            if ! ps | grep $targetPID &> /dev/null; then
                 break
             fi
             sleep 1
         done
-        ps | grep $targetPID &> /dev/null
-        if [ $? -eq 0 ]; then
+        if ps | grep $targetPID &> /dev/null; then
             kill $targetPID &> /dev/null
         fi
     fi
 fi
 
-which flatpak &> /dev/null
-if [ $? -eq 0 ]; then
+if which flatpak &> /dev/null; then
     flatpak update
     flatpak uninstall --unused
 fi
 
-which pip &> /dev/null
-if [ $? -eq 0 ]; then
-    which deactivate &> /dev/null
-    if [ $? -ne 0 ]; then
+if which pip &> /dev/null; then
+    if ! which deactivate &> /dev/null; then
         echo 'Please use pip venv packages instead of global system pip'
     fi
 fi

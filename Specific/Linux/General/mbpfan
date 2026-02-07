@@ -16,8 +16,7 @@ function daemon-reload() {
         logger --tag mbpfan --priority daemon.debug "loaded profile name: $(basename "$(readlink /etc/mbpfan.conf)")"
         systemctl daemon-reload
         cat /etc/mbpfan.conf | sed 's/#.*//' | sed '/^$/d' | logger --tag mbpfan --priority daemon.debug
-        systemctl restart mbpfan
-        if [ $? -eq 0 ]; then
+        if systemctl restart mbpfan; then
             logger --tag mbpfan --priority daemon.debug 'successfully restarted mbpfan daemon'
             logger --tag mbpfan --priority daemon.notice 'If the current fan speed is greater than the maximum fan speed, it may take longer for the changes to take effect.'
         else
@@ -28,8 +27,7 @@ function daemon-reload() {
         logger --tag mbpfan --priority daemon.notice "unable to following symbolic link to <UNKNOWN>. <UNKNOWN> is not correct file or directory name."
         if [ -d /etc/mbpfan.d ] && [ -f /etc/mbpfan.d/default ]; then
             logger --tag mbpfan --priority daemon.notice 'attempt to reassign symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/default'
-            ln -sf /etc/mbpfan.d/default /etc/mbpfan.conf
-            if [ $? -eq 0 ]; then
+            if ln -sf /etc/mbpfan.d/default /etc/mbpfan.conf; then
                 logger --tag mbpfan --priority daemon.debug 'successfully reassigned symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/default'
                 logger --tag mbpfan --priority daemon.info 'restarting `daemon-reload` function'
                 daemon-reload
@@ -75,6 +73,7 @@ if [ $# -eq 0 ] || [ "$1" == "status" ]; then
 
     target_inode=$(stat -c '%i' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")")
     match_inode=0
+    # shellcheck disable=SC2010
     mapfile -t target < <(ls -li /etc/mbpfan.d | grep -v "$(basename "$(readlink /etc/mbpfan.conf)")" | grep -v 'total' | awk '{ print $1 }')
     for i in "${!target[@]}"; do
         if [ $target_inode -eq ${target[$i]} ]; then
@@ -82,6 +81,7 @@ if [ $# -eq 0 ] || [ "$1" == "status" ]; then
         fi
     done
     if [ $match_inode -ne 0 ]; then
+        # shellcheck disable=SC2010
         echo "inherited = $(ls -li /etc/mbpfan.d | grep -v 'total' | grep -v "$(basename "$(readlink /etc/mbpfan.conf)")" | grep "$match_inode" | awk '{ print $10 }' | tr '\n' ' ')"
     fi
 
@@ -115,6 +115,7 @@ elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
 
         target_inode=$(stat -c '%i' "/etc/mbpfan.d/${target[$i]}")
         match_inode=0
+        # shellcheck disable=SC2010
         mapfile -t configs < <(ls -li /etc/mbpfan.d | grep -v "${target[$i]}" | grep -v 'total' | awk '{ print $1 }')
         for j in "${!configs[@]}"; do
             if [ $target_inode -eq ${configs[$j]} ]; then
@@ -122,6 +123,7 @@ elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
             fi
         done
         if [ $match_inode -ne 0 ]; then
+            # shellcheck disable=SC2010
             echo "inherited = $(ls -li /etc/mbpfan.d | grep -v 'total' | grep -v "${target[$i]}" | grep "$match_inode" | awk '{ print $10 }' | tr '\n' ' ')"
         fi
 
@@ -130,7 +132,7 @@ elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
     done
 elif [ "$1" == "get" ] && [ $# -ge 2 ] && [ $# -le 3 ]; then
     if [ "$2" == "name" ]; then
-        echo "$(basename "$(readlink /etc/mbpfan.conf)")"
+        basename "$(readlink /etc/mbpfan.conf)"
     elif [ "$2" == "speed" ]; then
         if [ $# -eq 2 ]; then
             cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep '^m.._fan._speed =' | awk -F '#' '{ print $1 }'
@@ -182,8 +184,7 @@ elif [ "$1" == "new" ]; then
         filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-$2
         cp "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename
         vi $filename
-        cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename
-        if [ $? -eq 0 ]; then
+        if cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename; then
             echo "Aborting create $2 profile due to identical $(basename "$(readlink /etc/mbpfan.conf)") profile." >&2
             rm $filename
         else
@@ -205,8 +206,7 @@ elif [ "$1" == "new" ]; then
         filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-$3
         cp /etc/mbpfan.d/$2 $filename
         vi $filename
-        cmp -s /etc/mbpfan.d/$2 $filename
-        if [ $? -eq 0 ]; then
+        if cmp -s /etc/mbpfan.d/$2 $filename; then
             echo "Aborting create $3 profile due to identical $2 profile." >&2
             rm $filename
         else
@@ -249,8 +249,7 @@ elif [ "$1" == "edit" ]; then
         filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-$(basename "$(readlink /etc/mbpfan.conf)")
         cp "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename
         vi $filename
-        cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename
-        if [ $? -eq 0 ]; then
+        if cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename; then
             echo "Aborting edit $(basename "$(readlink /etc/mbpfan.conf)") profile due to identical." >&2
             rm $filename
         else
@@ -275,8 +274,7 @@ elif [ "$1" == "edit" ]; then
             filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-${target[$i]}
             cp /etc/mbpfan.d/${target[$i]} $filename
             vi $filename
-            cmp -s /etc/mbpfan.d/${target[$i]} $filename
-            if [ $? -eq 0 ]; then
+            if cmp -s /etc/mbpfan.d/${target[$i]} $filename; then
                 echo "Aborting edit ${target[$i]} profile due to identical." >&2
                 rm $filename
             else
@@ -437,6 +435,7 @@ elif [ "$1" == "help" ]; then
     echo -e "   help\t\t\t\tshow this help."
     echo -e "\n※ Some options will request super-user permission."
     echo -e '\nAVAILABLE PROFILES'
+    # shellcheck disable=SC2010
     ls /etc/mbpfan.d | grep -v "$(basename "$(readlink /etc/mbpfan.conf)")" | sed 's/^/ /'
 else
     echo "unknown options: $*" >&2

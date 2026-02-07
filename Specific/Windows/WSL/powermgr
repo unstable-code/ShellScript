@@ -114,8 +114,7 @@ function executeCmd() {
         else
             comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
         fi
-        shutdown.exe -$1 -t $time -c "$comment"
-        if [ "$?" == "0" ]; then
+        if shutdown.exe -$1 -t $time -c "$comment"; then
             result=$(date -d "$time second")
             echo "The $option option will be executed at $result."
         fi
@@ -188,8 +187,7 @@ if [ "$option" == "halt" ]; then
 elif [ "$option" == "reboot" ]; then
     executeCmd r
 elif [ "$option" == "abort" ]; then
-    shutdown.exe -a
-    if [ "$?" == "0" ]; then
+    if shutdown.exe -a; then
         echo "The schedule has been canceled. Any previously scheduled commands will not be executed."
     fi
 
@@ -304,7 +302,7 @@ elif [ "$option" == "sleep" ]; then
         startTime=$(date +%s)
         rundll32.exe powrprof.dll SetSuspendState
         endTime=$(date +%s)
-        diffTime=$(($endTime-$startTime))
+        diffTime=$((endTime-startTime))
         if [ $diffTime -lt 300 ]; then
             resultMin=$((diffTime/60))
             resultSec=$((diffTime%60))
@@ -353,7 +351,7 @@ elif [ "$option" == "logout" ]; then
         exit 1
     fi
 
-elif [ "$option" == "help" ] || [ x"$option" == x ]; then
+elif [ "$option" == "help" ] || [ -z "$option" ]; then
     echo "usage: powermgr <option> [time] [comment]"
     echo "    halt: Shut down this computer"
     echo "  reboot: Restart this computer"

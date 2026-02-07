@@ -1,9 +1,7 @@
 #!/bin/bash
 
-which nvim &> /dev/null
-if [ $? -eq 0 ]; then
-    nvim --version > /dev/null
-    if [ $? -ne 0 ]; then
+if which nvim &> /dev/null; then
+    if ! nvim --version > /dev/null; then
         echo 'neovim package was corrupted.'
         echo 'Please re-install neovim in below link.'
         echo -e "\thttps://github.com/neovim/neovim/releases/latest"
@@ -27,45 +25,38 @@ if [ $? -eq 0 ]; then
     fi
 fi
 
-which juliaup &> /dev/null
-if [ $? -eq 0 ]; then
+if which juliaup &> /dev/null; then
     juliaup update
 fi
 
-which zsh &>/dev/null
-if [ $? == 0 ]; then
-    /bin/zsh -c "source ~/.zshrc; which omz > /dev/null 2>&1"
-    if [ $? == 0 ]; then
+if which zsh &>/dev/null; then
+    if /bin/zsh -c "source ~/.zshrc; which omz > /dev/null 2>&1"; then
         /bin/zsh -c "source ~/.zshrc; omz update" &
         targetPID=$!
         for (( i=0 ; i<=10 ; i++ )); do
-            ps | grep $targetPID &> /dev/null
-            if [ $? -ne 0 ]; then
+            if ! kill -0 $targetPID &> /dev/null; then
                 break
             fi
             sleep 1
         done
-        ps | grep $targetPID &> /dev/null
-        if [ $? -eq 0 ]; then
+        if kill -0 $targetPID &> /dev/null; then
             kill $targetPID &> /dev/null
         fi
     fi
 fi
 
-which flatpak &> /dev/null
-if [ $? -eq 0 ]; then
+if which flatpak &> /dev/null; then
     flatpak update -y
     flatpak uninstall --unused
 fi
 
-which docker &> /dev/null
-if [ $? -eq 0 ]; then
+if which docker &> /dev/null; then
     docker image prune -f
     docker volume prune -f
 fi
 
 if [ -x /usr/bin/vmplayer ]; then
-    vm_count=$(ls "/lib/modules/$(uname -r)/misc" 2> /dev/null | grep -c 'vm')
+    vm_count=$(find "/lib/modules/$(uname -r)/misc" -maxdepth 1 -name 'vm*' 2> /dev/null | wc -l)
     if [ $vm_count -ne 2 ]; then
         echo 'Installing VMware modules: vmnet, vmmon'
         sudo vmware-modconfig --console --install-all
@@ -93,10 +84,8 @@ if systemctl is-enabled --quiet --user chrome-mimetype-remove; then
     systemctl start --user chrome-mimetype-remove
 fi
 
-which pip &> /dev/null
-if [ $? -eq 0 ]; then
-    which deactivate &> /dev/null
-    if [ $? -ne 0 ]; then
+if which pip &> /dev/null; then
+    if ! which deactivate &> /dev/null; then
         echo 'Please use pip venv packages instead of global system pip'
     fi
 fi
@@ -111,13 +100,11 @@ find ~/.venv -maxdepth 1 -type d | while read venv; do
     fi
 done
 
-which claude &> /dev/null
-if [ $? -eq 0 ]; then
+if which claude &> /dev/null; then
     claude update
     #npm install -g @anthropic-ai/claude-code@latest
 fi
 
-which gemini &> /dev/null
-if [ $? -eq 0 ]; then
+if which gemini &> /dev/null; then
     npm install -g @google/gemini-cli@latest
 fi
