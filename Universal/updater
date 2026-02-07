@@ -11,16 +11,8 @@ function gitUpdate() {
         repoName+=("Release/brewall" "Release/ArtDisplay")
 
         if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
-            repoName+=("Release/Games/Diablo II Resurrected/seonhee")
-
             repoName+=("Release/Games/World of Warcraft/macros")
             repoName+=("Release/Games/World of Warcraft/WeakAuras")
-
-            repoName+=("Release/Games/World of Warcraft/AddOns/TalentSequence")
-            repoName+=("Release/Games/World of Warcraft/AddOns/WeaponSwingTimer")
-            repoName+=("Release/Games/World of Warcraft/AddOns/FlightTimerClassic")
-            repoName+=("Release/Games/World of Warcraft/AddOns/WhereToGatherClassic")
-            repoName+=("Release/Games/World of Warcraft/AddOns/AddOnsUpdater")
         fi
     fi
 
