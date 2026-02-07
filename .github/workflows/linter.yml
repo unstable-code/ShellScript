@@ -29,3 +29,4 @@ jobs:
           VALIDATE_PYTHON_FLAKE8: true
           VALIDATE_POWERSHELL: true
           VALIDATE_JULIA: true
+          VALIDATE_GITLEAKS: true
