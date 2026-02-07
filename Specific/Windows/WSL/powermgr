@@ -1,16 +1,16 @@
 #!/bin/bash
 
 executePath=/mnt/c/Windows/System32
-if [ -x $executePath/shutdown.exe ] || [ -x $executePath/rundll32.exe ]; then
-    cd $executePath 2> /dev/null || exit
+if [ -x "$executePath"/shutdown.exe ] || [ -x "$executePath"/rundll32.exe ]; then
+    cd "$executePath" 2> /dev/null || exit
 else
     echo "powermgr: fatal error: unable to access daemon. please mount the Windows system volume C:\\."
     exit 1
 fi
 
-option=$1
-time=$2
-comment=$3
+option="$1"
+time="$2"
+comment="$3"
 chk_time=${time//[0-9]/}
 changed="false"
 
@@ -31,9 +31,9 @@ function engagedTime() {
 
 function updateConfig() {
     echo "Please wait until updating your config file..."
-    engageTime $1 5
+    engageTime "$1" 5
     exportCmd="export QUIET_POWERMGR_SEQUENCE=TRUE # powermgr config"
-    if ! echo "$exportCmd" >> $2; then
+    if ! echo "$exportCmd" >> "$2"; then
         echo "Failed to update config file. There are no changes."
         exit 1
     else
@@ -52,7 +52,7 @@ function executeCmd() {
             else
                 comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
             fi
-            checkOption $option
+            checkOption "$option"
             if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
                 echo -en "This system \e[1;37mwill \e[1;31m$option\e[1;37m after\e[m 15 seconds. "
                 for (( i=15; i>=0; i-- )); do
@@ -67,12 +67,12 @@ function executeCmd() {
                 done
                 echo ""
             fi
-            engagedTime $option
-            shutdown.exe -$1 -t 0 -c "$comment"
+            engagedTime "$option"
+            shutdown.exe "-$1" -t 0 -c "$comment"
         elif [ "$1" == "s" ]; then
-            if [ -x $executePath/SlideToShutDown.exe ]; then
+            if [ -x "$executePath"/SlideToShutDown.exe ]; then
                 SlideToShutDown.exe
-                engagedTime $option
+                engagedTime "$option"
             else
                 if [ "$comment" == "" ]; then
                     comment="$USER didn't provided comment. The system $option due to powermgr script."
@@ -80,7 +80,7 @@ function executeCmd() {
                 else
                     comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
                 fi
-                checkOption $option
+                checkOption "$option"
                 if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
                     echo -en "This system \e[1;37mwill \e[1;31m$option\e[1;37m after\e[m 15 seconds. "
                     for (( i=15; i>=0; i-- )); do
@@ -95,14 +95,14 @@ function executeCmd() {
                     done
                     echo ""
                 fi
-                engagedTime $option
-                shutdown.exe -$1 -t 0 -c "$comment"
+                engagedTime "$option"
+                shutdown.exe "-$1" -t 0 -c "$comment"
             fi
         fi
     else
-        if [ $time -lt 15 ]; then
+        if [ "$time" -lt 15 ]; then
             echo -n "Warning! The time provided is shorter than the recommended time. would you like to proceed (y/N) > "
-            read n
+            read -r n
             if ! [ "$n" == "y" ] && ! [ "$n" == "Y" ]; then
                 echo -e "\e[1;31m$option\e[1;37m command aborted\e[m by user."
                 exit 2
@@ -114,7 +114,7 @@ function executeCmd() {
         else
             comment="$USER executed $option using powermgr script. Here are the user-provided comments: $comment"
         fi
-        if shutdown.exe -$1 -t $time -c "$comment"; then
+        if shutdown.exe "-$1" -t "$time" -c "$comment"; then
             result=$(date -d "$time second")
             echo "The $option option will be executed at $result."
         fi
@@ -124,7 +124,7 @@ function executeCmd() {
 function checkOption() {
     if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
         echo -en "Are you sure you want to \e[1;31m$1 \e[1;37mthe system\e[m now? (Y/n/d) > "
-        read n
+        read -r n
         if [ "$n" == "N" ] || [ "$n" == "n" ]; then
             echo -e "\e[1;31m$1\e[1;37m command aborted\e[m by user."
             if [ "$1" == "standby" ] || [ "$1" == "hibernate" ]; then
@@ -133,9 +133,9 @@ function checkOption() {
             exit 2
         elif [ "$n" == "D" ] || [ "$n" == "d" ]; then
             if [ "$SHELL" == "/bin/bash" ]; then
-                updateConfig $1 ~/.bashrc
+                updateConfig "$1" ~/.bashrc
             elif [ "$SHELL" == "/bin/zsh" ]; then
-                updateConfig $1 ~/.zshrc
+                updateConfig "$1" ~/.zshrc
             else
                 echo "Unsupported shell ($SHELL). Please paste this command to your config file manually."
                 echo "$exportCmd"
@@ -148,7 +148,7 @@ function checkOption() {
 function restoreSleepOption() {
     if [ "$changed" == "true" ]; then
         echo -n "Do you want to restore sleep settings to their previous values? (Y/n) > "
-        read n
+        read -r n
         if [ "$n" == "n" ] || [ "$n" == "N" ]; then
             echo "Please manually adjust your sleep settings. The current setting is $option mode."
         else
@@ -201,7 +201,7 @@ elif [ "$option" == "sleep" ]; then
                 echo "NOTE: Methods marked with '*' require administrator privileges."
                 echo -n "Please choose a sleeping method (h: hibernate*, S: standby, c: cancel) > "
             fi
-            read n
+            read -r n
             if [ "$n" == "c" ] || [ "$n" == "C" ]; then
                 echo -e "\e[1;31m$option\e[1;37m command aborted\e[m by user."
                 exit 2
@@ -209,7 +209,7 @@ elif [ "$option" == "sleep" ]; then
                 if [ ! -f /mnt/c/hiberfil.sys ]; then
                     echo "The current system sleep option is set to standby. You need administrator privileges to change to hibernate mode."
                     echo -n "Are you sure you want to change this option? (y/N) > "
-                    read n
+                    read -r n
                     if [ "$n" == "y" ] || [ "$n" == "Y" ]; then
                         if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
                             python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h on
@@ -240,7 +240,7 @@ elif [ "$option" == "sleep" ]; then
                 if [ -f /mnt/c/hiberfil.sys ]; then
                     echo "The current system sleep option is set to hibernate. You need administrator privileges to change to standby mode."
                     echo -n "Are you sure you want to change this option? (y/N) > "
-                    read n
+                    read -r n
                     if [ "$n" == "y" ] || [ "$n" == "Y" ]; then
                         if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
                             python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h off
@@ -283,7 +283,7 @@ elif [ "$option" == "sleep" ]; then
             fi
         done
 
-        checkOption $option
+        checkOption "$option"
         if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
             echo -en "This system \e[1;37mwill \e[1;31m$option\e[1;37m after\e[m 15 seconds. "
             for (( i=15; i>=0; i-- )); do
@@ -298,7 +298,7 @@ elif [ "$option" == "sleep" ]; then
             done
             echo ""
         fi
-        engagedTime $option
+        engagedTime "$option"
         startTime=$(date +%s)
         rundll32.exe powrprof.dll SetSuspendState
         endTime=$(date +%s)
@@ -317,8 +317,8 @@ elif [ "$option" == "sleep" ]; then
     fi
 elif [ "$option" == "lock" ]; then
     if [ "$time" == "" ]; then
-        checkOption $option
-        engagedTime $option
+        checkOption "$option"
+        engagedTime "$option"
         rundll32.exe user32.dll LockWorkStation
     else
 		result=$(date -d "$time second")
@@ -328,7 +328,7 @@ elif [ "$option" == "lock" ]; then
 
 elif [ "$option" == "logout" ]; then
     if [ "$time" == "" ]; then
-        checkOption $option
+        checkOption "$option"
         if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
             echo -en "This system \e[1;37mwill \e[1;31m$1\e[1;37m after\e[m 15 seconds. "
             for (( i=15; i>=0; i-- )); do
@@ -343,7 +343,7 @@ elif [ "$option" == "logout" ]; then
             done
             echo ""
         fi
-        engagedTime $option
+        engagedTime "$option"
         shutdown.exe -l
     else
 		result=$(date -d "$time second")

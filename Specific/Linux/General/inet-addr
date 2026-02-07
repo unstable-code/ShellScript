@@ -17,22 +17,22 @@ if [ "$1" == "--help" ]; then
 fi
 
 function mask_addr() {
-    if [ $1 -eq 0 ]; then
+    if [ "$1" -eq 0 ]; then
         echo "$2"
-    elif [ $1 -eq 1 ]; then
+    elif [ "$1" -eq 1 ]; then
         printf '♡.%s.%s.%s\n' "$(echo "$2" | awk -F. '{ print $2 }')" "$(echo "$2" | awk -F. '{ print $3 }')" "$(echo "$2" | awk -F. '{ print $4 }')"
-    elif [ $1 -eq 2 ]; then
+    elif [ "$1" -eq 2 ]; then
         printf '%s.♡.%s.%s\n' "$(echo "$2" | awk -F. '{ print $1 }')" "$(echo "$2" | awk -F. '{ print $3 }')" "$(echo "$2" | awk -F. '{ print $4 }')"
-    elif [ $1 -eq 3 ]; then
+    elif [ "$1" -eq 3 ]; then
         printf '%s.%s.♡.%s\n' "$(echo "$2" | awk -F. '{ print $1 }')" "$(echo "$2" | awk -F. '{ print $2 }')" "$(echo "$2" | awk -F. '{ print $4 }')"
-    elif [ $1 -eq 4 ]; then
+    elif [ "$1" -eq 4 ]; then
         printf '%s.%s.%s.♡\n' "$(echo "$2" | awk -F. '{ print $1 }')" "$(echo "$2" | awk -F. '{ print $2 }')" "$(echo "$2" | awk -F. '{ print $3 }')"
-    elif [ $1 -eq -127 ]; then
+    elif [ "$1" -eq -127 ]; then
         echo "$2"
     else
         echo "$2"
 
-        if [ $mask -gt 4 ] || [ $mask -lt 0 ]; then
+        if [ "$mask" -gt 4 ] || [ "$mask" -lt 0 ]; then
             echo "error: index out of bounds. 0...4 <> $mask" >&2
             echo "IPv4 address mask function fault." >&2
         fi
@@ -138,102 +138,102 @@ for i in "${params[@]}"; do
     esac
 done
 
-if [ $mask -ge -4 ]; then
+if [ "$mask" -ge -4 ]; then
     addr_mode=2
 fi
 
-if [ $addr_mode -eq 1 ]; then
-    cnt_ip="$(curl -s $chk_url)"
+if [ "$addr_mode" -eq 1 ]; then
+    cnt_ip="$(curl -s "$chk_url")"
     echo -n 'Public: '
-    mask_addr $mask $cnt_ip
-elif [ $addr_mode -eq 0 ]; then
+    mask_addr "$mask" "$cnt_ip"
+elif [ "$addr_mode" -eq 0 ]; then
     net_device_select
-    cnt_ip=$(ifconfig $net_device | sed -n '2p' | awk '{ print $2 }')
-    diff_ip="$(curl -s $chk_url)"
+    cnt_ip=$(ifconfig "$net_device" | sed -n '2p' | awk '{ print $2 }')
+    diff_ip="$(curl -s "$chk_url")"
     if [ "$cnt_ip" == "$diff_ip" ]; then
         echo -n 'Public: '
-        mask_addr $mask $cnt_ip
+        mask_addr "$mask" "$cnt_ip"
     else
         echo -n 'Private: '
-        mask_addr $mask $cnt_ip
+        mask_addr "$mask" "$cnt_ip"
     fi
-elif [ $addr_mode -eq 2 ]; then
+elif [ "$addr_mode" -eq 2 ]; then
     net_device_select
 
-    mask_public=$mask
-    mask_private=$mask
+    mask_public="$mask"
+    mask_private="$mask"
 
-    if [ $mask -eq -1 ]; then
+    if [ "$mask" -eq -1 ]; then
         mask_public=0
         mask_private=1
-    elif [ $mask -eq -2 ]; then
+    elif [ "$mask" -eq -2 ]; then
         mask_public=0
         mask_private=2
-    elif [ $mask -eq -3 ]; then
+    elif [ "$mask" -eq -3 ]; then
         mask_public=0
         mask_private=3
-    elif [ $mask -eq -4 ]; then
+    elif [ "$mask" -eq -4 ]; then
         mask_public=0
         mask_private=4
-    elif [ $mask -eq 10 ]; then
+    elif [ "$mask" -eq 10 ]; then
         mask_public=1
         mask_private=0
-    elif [ $mask -eq 12 ]; then
+    elif [ "$mask" -eq 12 ]; then
         mask_public=1
         mask_private=2
-    elif [ $mask -eq 13 ]; then
+    elif [ "$mask" -eq 13 ]; then
         mask_public=1
         mask_private=3
-    elif [ $mask -eq 14 ]; then
+    elif [ "$mask" -eq 14 ]; then
         mask_public=1
         mask_private=4
-    elif [ $mask -eq 20 ]; then
+    elif [ "$mask" -eq 20 ]; then
         mask_public=2
         mask_private=0
-    elif [ $mask -eq 21 ]; then
+    elif [ "$mask" -eq 21 ]; then
         mask_public=2
         mask_private=1
-    elif [ $mask -eq 23 ]; then
+    elif [ "$mask" -eq 23 ]; then
         mask_public=2
         mask_private=3
-    elif [ $mask -eq 24 ]; then
+    elif [ "$mask" -eq 24 ]; then
         mask_public=2
         mask_private=4
-    elif [ $mask -eq 30 ]; then
+    elif [ "$mask" -eq 30 ]; then
         mask_public=3
         mask_private=0
-    elif [ $mask -eq 31 ]; then
+    elif [ "$mask" -eq 31 ]; then
         mask_public=3
         mask_private=1
-    elif [ $mask -eq 32 ]; then
+    elif [ "$mask" -eq 32 ]; then
         mask_public=3
         mask_private=2
-    elif [ $mask -eq 34 ]; then
+    elif [ "$mask" -eq 34 ]; then
         mask_public=3
         mask_private=4
-    elif [ $mask -eq 40 ]; then
+    elif [ "$mask" -eq 40 ]; then
         mask_public=4
         mask_private=0
-    elif [ $mask -eq 41 ]; then
+    elif [ "$mask" -eq 41 ]; then
         mask_public=4
         mask_private=1
-    elif [ $mask -eq 42 ]; then
+    elif [ "$mask" -eq 42 ]; then
         mask_public=4
         mask_private=2
-    elif [ $mask -eq 43 ]; then
+    elif [ "$mask" -eq 43 ]; then
         mask_public=4
         mask_private=3
     fi
 
-    cnt_ip=$(ifconfig $net_device | sed -n '2p' | awk '{ print $2 }')
-    diff_ip="$(curl -s $chk_url)"
+    cnt_ip=$(ifconfig "$net_device" | sed -n '2p' | awk '{ print $2 }')
+    diff_ip="$(curl -s "$chk_url")"
     if [ "$cnt_ip" == "$diff_ip" ]; then
         echo -n 'Public: '
-        mask_addr $mask_public $cnt_ip
+        mask_addr "$mask_public" "$cnt_ip"
     else
         echo -n 'Public: '
-        mask_addr $mask_public $diff_ip
+        mask_addr "$mask_public" "$diff_ip"
         echo -n 'Private: '
-        mask_addr $mask_private $cnt_ip
+        mask_addr "$mask_private" "$cnt_ip"
     fi
 fi

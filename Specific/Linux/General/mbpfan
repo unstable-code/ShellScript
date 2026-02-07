@@ -9,6 +9,7 @@ function check-permission() {
 }
 
 function daemon-reload() {
+    # shellcheck disable=SC2016
     logger --tag mbpfan --priority daemon.notice '`daemon-reload` called. reloading /etc/mbpfan.conf...'
     logger --tag mbpfan --priority daemon.debug 'checking symbolic link for /etc/mbpfan.conf'
     if [ -r "$(readlink /etc/mbpfan.conf)" ]; then
@@ -29,19 +30,23 @@ function daemon-reload() {
             logger --tag mbpfan --priority daemon.notice 'attempt to reassign symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/default'
             if ln -sf /etc/mbpfan.d/default /etc/mbpfan.conf; then
                 logger --tag mbpfan --priority daemon.debug 'successfully reassigned symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/default'
+                # shellcheck disable=SC2016
                 logger --tag mbpfan --priority daemon.info 'restarting `daemon-reload` function'
                 daemon-reload
             else
                 logger --tag mbpfan --priority daemon.crit 'unable to reassign symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/default. Exiting!'
+                # shellcheck disable=SC2016
                 logger --tag mbpfan --priority daemon.alert 'exiting `mbpfan` script due to unrecoverable error detected. all unsaved data will be lost.'
                 exit 1
             fi
         elif [ -d /etc/mbpfan.d ]; then
             logger --tag mbpfan --priority daemon.crit 'unable to reassign symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/default. no such default profile. Exiting!'
+            # shellcheck disable=SC2016
             logger --tag mbpfan --priority daemon.alert 'exiting `mbpfan` script due to unrecoverable error detected. all unsaved data will be lost.'
             exit 1
         else
             logger --tag mbpfan --priority daemon.crit "unable to locate /etc/mbpfan.d directory. Exiting!"
+            # shellcheck disable=SC2016
             logger --tag mbpfan --priority daemon.alert 'exiting `mbpfan` script due to unrecoverable error detected. all unsaved data will be lost.'
             exit 1
         fi
@@ -76,11 +81,11 @@ if [ $# -eq 0 ] || [ "$1" == "status" ]; then
     # shellcheck disable=SC2010
     mapfile -t target < <(ls -li /etc/mbpfan.d | grep -v "$(basename "$(readlink /etc/mbpfan.conf)")" | grep -v 'total' | awk '{ print $1 }')
     for i in "${!target[@]}"; do
-        if [ $target_inode -eq ${target[$i]} ]; then
+        if [ "$target_inode" -eq "${target[$i]}" ]; then
             match_inode=${target[$i]}
         fi
     done
-    if [ $match_inode -ne 0 ]; then
+    if [ "$match_inode" -ne 0 ]; then
         # shellcheck disable=SC2010
         echo "inherited = $(ls -li /etc/mbpfan.d | grep -v 'total' | grep -v "$(basename "$(readlink /etc/mbpfan.conf)")" | grep "$match_inode" | awk '{ print $10 }' | tr '\n' ' ')"
     fi
@@ -91,13 +96,13 @@ if [ $# -eq 0 ] || [ "$1" == "status" ]; then
     sensors -u coretemp-isa-0000 | grep temp._input | cut -d. -f1 | sed 's/^  /cnt_cpu_/' | sed 's/: / = /' | sed 's/_input//'
 
     current_mode=$(cat /sys/devices/system/cpu/intel_pstate/no_turbo)
-    if [ $current_mode -eq 0 ]; then
+    if [ "$current_mode" -eq 0 ]; then
         echo "intel_turbo_boost = $(cat /sys/devices/system/cpu/intel_pstate/turbo_pct)"
     else
         echo -e "intel_turbo_boost = 0\t\t(disabled)"
     fi
 elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
-    if ! [ -r /etc/mbpfan.d/$2 ]; then
+    if ! [ -r /etc/mbpfan.d/"$2" ]; then
         echo "error: no such profile: $2" >&2
         exit 1
     fi
@@ -107,7 +112,7 @@ elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
         if [ "${target[$i]}" == "show" ]; then
             continue
         fi
-        if ! [ -r /etc/mbpfan.d/${target[$i]} ]; then
+        if ! [ -r /etc/mbpfan.d/"${target[$i]}" ]; then
             echo "error: no such profile: ${target[$i]}. Skipping" >&2
             continue
         fi
@@ -118,11 +123,11 @@ elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
         # shellcheck disable=SC2010
         mapfile -t configs < <(ls -li /etc/mbpfan.d | grep -v "${target[$i]}" | grep -v 'total' | awk '{ print $1 }')
         for j in "${!configs[@]}"; do
-            if [ $target_inode -eq ${configs[$j]} ]; then
+            if [ "$target_inode" -eq "${configs[$j]}" ]; then
                 match_inode=${configs[$j]}
             fi
         done
-        if [ $match_inode -ne 0 ]; then
+        if [ "$match_inode" -ne 0 ]; then
             # shellcheck disable=SC2010
             echo "inherited = $(ls -li /etc/mbpfan.d | grep -v 'total' | grep -v "${target[$i]}" | grep "$match_inode" | awk '{ print $10 }' | tr '\n' ' ')"
         fi
@@ -172,74 +177,75 @@ elif [ "$1" == "get" ] && [ $# -ge 2 ] && [ $# -le 3 ]; then
         exit 1
     fi
 elif [ "$1" == "ls" ] || [ "$1" == "list" ]; then
+    # shellcheck disable=SC2012
     ls /etc/mbpfan.d | sed "s/$(basename "$(readlink /etc/mbpfan.conf)")/$(basename "$(readlink /etc/mbpfan.conf)")*/"
 elif [ "$1" == "new" ]; then
     if [ $# -eq 2 ]; then
-        if [ -r /etc/mbpfan.d/$2 ]; then
+        if [ -r /etc/mbpfan.d/"$2" ]; then
             echo "error: $2 profile already exist." >&2
             exit 1
         fi
 
         check-permission
         filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-$2
-        cp "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename
-        vi $filename
-        if cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename; then
+        cp "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" "$filename"
+        vi "$filename"
+        if cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" "$filename"; then
             echo "Aborting create $2 profile due to identical $(basename "$(readlink /etc/mbpfan.conf)") profile." >&2
-            rm $filename
+            rm "$filename"
         else
-            mv $filename /etc/mbpfan.d/$2
-            chown root:root /etc/mbpfan.d/$2
+            mv "$filename" /etc/mbpfan.d/"$2"
+            chown root:root /etc/mbpfan.d/"$2"
             logger --tag mbpfan --priority user.info "successfully created $2 profile with $(basename "$(readlink /etc/mbpfan.conf)")"
             echo "please re-run this script to apply $2 profile."
         fi
     elif [ $# -eq 3 ]; then
-        if ! [ -r /etc/mbpfan.d/$2 ]; then
+        if ! [ -r /etc/mbpfan.d/"$2" ]; then
             echo "error: no such profile: $2" >&2
             exit 1
-        elif [ -r /etc/mbpfan.d/$3 ]; then
+        elif [ -r /etc/mbpfan.d/"$3" ]; then
             echo "error: $3 profile already exist." >&2
             exit 1
         fi
 
         check-permission
         filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-$3
-        cp /etc/mbpfan.d/$2 $filename
-        vi $filename
-        if cmp -s /etc/mbpfan.d/$2 $filename; then
+        cp /etc/mbpfan.d/"$2" "$filename"
+        vi "$filename"
+        if cmp -s /etc/mbpfan.d/"$2" "$filename"; then
             echo "Aborting create $3 profile due to identical $2 profile." >&2
-            rm $filename
+            rm "$filename"
         else
-            mv $filename /etc/mbpfan.d/$3
-            chown root:root /etc/mbpfan.d/$3
+            mv "$filename" /etc/mbpfan.d/"$3"
+            chown root:root /etc/mbpfan.d/"$3"
             logger --tag mbpfan --priority user.info "successfully created $3 profile with $2"
             echo "please re-run this script to apply $3 profile."
         fi
     fi
 elif [ "$1" == "lnk" ] || [ "$1" == "link" ]; then
     if [ $# -eq 2 ]; then
-        if [ -r /etc/mbpfan.d/$2 ]; then
+        if [ -r /etc/mbpfan.d/"$2" ]; then
             echo "error: $2 profile already exist." >&2
             exit 1
         fi
 
         check-permission
-        ln "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" /etc/mbpfan.d/$2
-        chown root:root /etc/mbpfan.d/$2
+        ln "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" /etc/mbpfan.d/"$2"
+        chown root:root /etc/mbpfan.d/"$2"
         logger --tag mbpfan --priority user.info "successfully linked $2 profile with $(basename "$(readlink /etc/mbpfan.conf)")"
         echo "please re-run this script to apply $2 profile."
     elif [ $# -eq 3 ]; then
-        if ! [ -r /etc/mbpfan.d/$2 ]; then
+        if ! [ -r /etc/mbpfan.d/"$2" ]; then
             echo "error: no such profile: $2" >&2
             exit 1
-        elif [ -r /etc/mbpfan.d/$3 ]; then
+        elif [ -r /etc/mbpfan.d/"$3" ]; then
             echo "error: $3 profile already exist." >&2
             exit 1
         fi
 
         check-permission
-        ln /etc/mbpfan.d/$2 /etc/mbpfan.d/$3
-        chown root:root /etc/mbpfan.d/$3
+        ln /etc/mbpfan.d/"$2" /etc/mbpfan.d/"$3"
+        chown root:root /etc/mbpfan.d/"$3"
         logger --tag mbpfan --priority user.info "successfully linked $3 profile with $2"
         echo "please re-run this script to apply $3 profile."
     fi
@@ -247,14 +253,14 @@ elif [ "$1" == "edit" ]; then
     if [ $# -eq 1 ]; then
         check-permission
         filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-$(basename "$(readlink /etc/mbpfan.conf)")
-        cp "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename
-        vi $filename
-        if cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename; then
+        cp "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" "$filename"
+        vi "$filename"
+        if cmp -s "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" "$filename"; then
             echo "Aborting edit $(basename "$(readlink /etc/mbpfan.conf)") profile due to identical." >&2
-            rm $filename
+            rm "$filename"
         else
-            diff "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" $filename | sed 's/\#.*//g' | logger --tag mbpfan --priority user.debug
-            mv -f $filename "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")"
+            diff "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" "$filename" | sed 's/\#.*//g' | logger --tag mbpfan --priority user.debug
+            mv -f "$filename" "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")"
             logger --tag mbpfan --priority user.debug "currently using $(basename "$(readlink /etc/mbpfan.conf)") profile changed. reloading..."
             logger --tag mbpfan --priority user.info "successfully altered $(basename "$(readlink /etc/mbpfan.conf)") profile"
             daemon-reload
@@ -265,21 +271,21 @@ elif [ "$1" == "edit" ]; then
             if [ "${target[$i]}" == "edit" ]; then
                 continue
             fi
-            if ! [ -r /etc/mbpfan.d/${target[$i]} ]; then
+            if ! [ -r /etc/mbpfan.d/"${target[$i]}" ]; then
                 echo "error: no such profile: ${target[$i]}. Skipping" >&2
                 continue
             fi
 
             check-permission
             filename=/tmp/mbpfan-$(date +'%Y-%m-%d_%H:%M:%S')-${target[$i]}
-            cp /etc/mbpfan.d/${target[$i]} $filename
-            vi $filename
-            if cmp -s /etc/mbpfan.d/${target[$i]} $filename; then
+            cp /etc/mbpfan.d/"${target[$i]}" "$filename"
+            vi "$filename"
+            if cmp -s /etc/mbpfan.d/"${target[$i]}" "$filename"; then
                 echo "Aborting edit ${target[$i]} profile due to identical." >&2
-                rm $filename
+                rm "$filename"
             else
-                diff /etc/mbpfan.d/${target[$i]} $filename | sed 's/\#.*//g' | logger --tag mbpfan --priority user.debug
-                mv -f $filename /etc/mbpfan.d/${target[$i]}
+                diff /etc/mbpfan.d/"${target[$i]}" "$filename" | sed 's/\#.*//g' | logger --tag mbpfan --priority user.debug
+                mv -f "$filename" /etc/mbpfan.d/"${target[$i]}"
                 if [ "${target[$i]}" == "$(basename "$(readlink /etc/mbpfan.conf)")" ]; then
                     logger --tag mbpfan --priority user.debug "currently using $(basename "$(readlink /etc/mbpfan.conf)") profile changed. reloading..."
                     logger --tag mbpfan --priority user.info "successfully altered $(basename "$(readlink /etc/mbpfan.conf)") profile"
@@ -292,7 +298,7 @@ elif [ "$1" == "edit" ]; then
     fi
 elif [ "$1" == "set" ]; then
     if [ $# -eq 2 ]; then
-        if [ -r /etc/mbpfan.d/$2 ]; then
+        if [ -r /etc/mbpfan.d/"$2" ]; then
             prev_profile=$(basename "$(readlink /etc/mbpfan.conf)")
             if [ "$prev_profile" == "$2" ]; then
                 echo "error: current and provided profile are identical" >&2
@@ -300,7 +306,7 @@ elif [ "$1" == "set" ]; then
             fi
 
             check-permission
-            ln -sf /etc/mbpfan.d/$2 /etc/mbpfan.conf
+            ln -sf /etc/mbpfan.d/"$2" /etc/mbpfan.conf
             daemon-reload
             echo "successfully changed $prev_profile profile to $2"
             logger --tag mbpfan --priority daemon.debug "successfully reassigned /etc/mbpfan.conf <--> /etc/mbpfan.d/$2"
@@ -329,29 +335,29 @@ elif [ "$1" == "set" ]; then
     fi
 elif [ "$1" == "rename" ] || [ "$1" == "rn" ]; then
     if [ $# -eq 2 ]; then
-        if [ -r /etc/mbpfan.d/$2 ]; then
+        if [ -r /etc/mbpfan.d/"$2" ]; then
             echo "error: $2 profile already exist." >&2
             exit 1
         fi
 
         check-permission
         prev_profile=$(basename "$(readlink /etc/mbpfan.conf)")
-        mv "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" /etc/mbpfan.d/$2
-        ln -sf /etc/mbpfan.d/$2 /etc/mbpfan.conf
+        mv "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" /etc/mbpfan.d/"$2"
+        ln -sf /etc/mbpfan.d/"$2" /etc/mbpfan.conf
         daemon-reload
         echo "successfully renamed $prev_profile profile to $2"
         logger --tag mbpfan --priority user.info "successfully renamed $prev_profile profile to $2"
     else
-        if ! [ -r /etc/mbpfan.d/$2 ]; then
+        if ! [ -r /etc/mbpfan.d/"$2" ]; then
             echo "error: no such profile: $2" >&2
             exit 1
-        elif [ -r /etc/mbpfan.d/$3 ]; then
+        elif [ -r /etc/mbpfan.d/"$3" ]; then
             echo "error: $3 profile already exist." >&2
             exit 1
         fi
 
         check-permission
-        mv /etc/mbpfan.d/$2 /etc/mbpfan.d/$3
+        mv /etc/mbpfan.d/"$2" /etc/mbpfan.d/"$3"
         logger --tag mbpfan --priority user.info "successfully renamed $2 profile to $3"
         echo "successfully renamed $2 profile to $3"
     fi
@@ -363,7 +369,7 @@ elif [ "$1" == "remove" ] || [ "$1" == "rm" ]; then
         if [ "${target[$i]}" == "rm" ] || [ "${target[$i]}" == "remove" ]; then
             continue
         fi
-        if ! [ -r /etc/mbpfan.d/${target[$i]} ]; then
+        if ! [ -r /etc/mbpfan.d/"${target[$i]}" ]; then
             echo "error: no such profile: ${target[$i]}. Skipping" >&2
             continue
         fi
@@ -374,7 +380,7 @@ elif [ "$1" == "remove" ] || [ "$1" == "rm" ]; then
             exit 1
         else
             check-permission
-            rm /etc/mbpfan.d/${target[$i]}
+            rm /etc/mbpfan.d/"${target[$i]}"
             logger --tag mbpfan --priority user.info "successfully drop ${target[$i]} profile"
             echo "successfully deleted ${target[$i]} profile"
         fi
@@ -382,7 +388,7 @@ elif [ "$1" == "remove" ] || [ "$1" == "rm" ]; then
 elif [ "$1" == "turbo" ]; then
     if [ $# -eq 1 ] || [ "$2" == "status" ]; then
         current_mode=$(cat /sys/devices/system/cpu/intel_pstate/no_turbo)
-        if [ $current_mode -eq 0 ]; then
+        if [ "$current_mode" -eq 0 ]; then
             echo 'turbo boost is enabled'
         else
             echo 'turbo boost is disabled'
@@ -391,7 +397,7 @@ elif [ "$1" == "turbo" ]; then
         echo "error: unknown parameter: $2" >&2
         exit 1
     else
-        if [ $2 -eq 1 ]; then
+        if [ "$2" -eq 1 ]; then
             if [ "$(cat /sys/devices/system/cpu/intel_pstate/no_turbo)" -eq 0 ]; then
                 echo 'turbo boost is already enabled.' >&2
                 logger --tag mbpfan --priority user.warn "unable to change intel_turbo_boost value. requirements already satisfied."

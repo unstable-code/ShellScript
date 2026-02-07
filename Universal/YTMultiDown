@@ -173,6 +173,7 @@ function mediaDownloader() {
 }
 
 function mediaCount() {
+    # shellcheck disable=SC2009
     ps -ef | grep "$yt_dlp" | grep -v "grep" | grep -vc "caffeinate"
 }
 
@@ -191,6 +192,7 @@ function mediaList() {
         echo -e "--- 현재 다운로드 중인 미디어(\033[34m$mc\033[m/5) ---"
     fi
 
+    # shellcheck disable=SC2009
     ps -ef | grep "$yt_dlp" | grep -v grep | grep -v "$1 yt_dlp" | grep -v "caffeinate"
 }
 

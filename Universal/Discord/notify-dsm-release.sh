@@ -2,8 +2,8 @@
 
 BASE_URL="https://archive.synology.com/download/Os/DSM"
 NAS_MODEL="${NAS_MODEL:-$(cat /proc/sys/kernel/syno_hw_version)}"
-DISCORD_URL="$DISCORD_URL"
-LOCK_FILE="$HOME/.$(echo $DISCORD_URL | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
+DISCORD_URL="${DISCORD_URL:-}"
+LOCK_FILE="$HOME/.$(echo "$DISCORD_URL" | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
 
 if [ -z "$DISCORD_URL" ]; then
     echo 'Please set DISCORD_URL first.' >&2
@@ -12,6 +12,7 @@ fi
 
 if [ -z "$NAS_MODEL" ]; then
     echo 'Please set NAS_MODEL first.' >&2
+    # shellcheck disable=SC2016
     echo 'ex. `export NAS_MODEL=DS918+`' >&2
     exit 1
 fi

@@ -4,8 +4,8 @@
 AP_REGION=${AP_REGION:-us-east-1}
 
 REPO_TAG_FEED="https://status.aws.amazon.com/rss/multipleservices-$AP_REGION.rss"
-CACHE_FILE="$HOME/.$(echo $DISCORD_URL | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
-DISCORD_URL="$DISCORD_URL"
+CACHE_FILE="$HOME/.$(echo "$DISCORD_URL" | sed 's/https:\/\/discord.com\/api\/webhooks\///' | awk -F '/' '{ print $1 }')"
+DISCORD_URL="${DISCORD_URL:-}"
 
 if [ -z "$DISCORD_URL" ]; then
     echo 'Please set DISCORD_URL to use this script.' >&2

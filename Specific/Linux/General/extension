@@ -8,8 +8,8 @@ if which nvim &> /dev/null; then
     else
         local=$(nvim --version | grep NVIM | awk '{ print $2 }' | awk -F '-' '{ print $1 }')
         release=$(curl -fsSL https://github.com/neovim/neovim/releases/latest | grep 'css-truncate css-truncate-target' | awk -F '/' '{ print $5 }' | cut -d\" -f1)
-        target=$(vercmp $local $release)
-        if [ $target -lt 0 ]; then
+        target=$(vercmp "$local" "$release")
+        if [ "$target" -lt 0 ]; then
             if [ -d ~/snap/neovim ]; then
                 cd ~/snap/neovim || exit
                 git pull --rebase origin "$(git branch --show-current)"
@@ -57,7 +57,7 @@ fi
 
 if [ -x /usr/bin/vmplayer ]; then
     vm_count=$(find "/lib/modules/$(uname -r)/misc" -maxdepth 1 -name 'vm*' 2> /dev/null | wc -l)
-    if [ $vm_count -ne 2 ]; then
+    if [ "$vm_count" -ne 2 ]; then
         echo 'Installing VMware modules: vmnet, vmmon'
         sudo vmware-modconfig --console --install-all
     else
@@ -90,7 +90,7 @@ if which pip &> /dev/null; then
     fi
 fi
 
-find ~/.venv -maxdepth 1 -type d | while read venv; do
+find ~/.venv -maxdepth 1 -type d | while read -r venv; do
     if [ -x "$venv/bin/pip" ]; then
         echo -e "\n\033[37mupdater: Updating pip packages in: $venv...\033[m"
 

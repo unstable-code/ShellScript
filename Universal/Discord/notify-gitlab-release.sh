@@ -96,7 +96,7 @@ fi
 VERSIONS=$(echo "$TITLE" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')
 
 echo "Type: $RELEASE_TYPE"
-echo "Versions: $(echo $VERSIONS | tr '\n' ' ')"
+echo "Versions: $(echo "$VERSIONS" | tr '\n' ' ')"
 echo -e "Description: $DESCRIPTION"
 
 # Docker 링크 목록 생성

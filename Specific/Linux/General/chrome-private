@@ -15,7 +15,7 @@ if ! pgrep -f spoofdpi &> /dev/null; then
     launched=1
 fi
 
-flatpak run com.google.Chrome --incognito --proxy-server=127.0.0.1:12345 https://google.com $chrome_flags &
+flatpak run com.google.Chrome --incognito --proxy-server=127.0.0.1:12345 https://google.com "$chrome_flags" &
 target_app_pid=$!
 
 if [ $launched -eq 1 ]; then

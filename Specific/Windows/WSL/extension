@@ -27,6 +27,7 @@ fi
 if which wsl.exe &>/dev/null; then
     wsl.exe --status
     wsl.exe --version
+    # shellcheck disable=SC2016
     echo 'Please enter `wsl.exe --update` command if you wanna check WSL updates.'
 fi
 
@@ -50,12 +51,12 @@ if which zsh &>/dev/null; then
         /bin/zsh -c "source ~/.zshrc; omz update" &
         targetPID=$!
         for (( i=0 ; i<=10 ; i++ )); do
-            if ! ps | grep $targetPID &> /dev/null; then
+            if ! kill -0 $targetPID 2>/dev/null; then
                 break
             fi
             sleep 1
         done
-        if ps | grep $targetPID &> /dev/null; then
+        if kill -0 $targetPID 2>/dev/null; then
             kill $targetPID &> /dev/null
         fi
     fi
@@ -72,7 +73,7 @@ if which pip &> /dev/null; then
     fi
 fi
 
-find ~/.venv -maxdepth 1 -type d | while read venv; do
+find ~/.venv -maxdepth 1 -type d | while read -r venv; do
     if [ -x "$venv/bin/pip" ]; then
         echo -e "\n\033[37mupdater: Updating pip packages in: $venv...\033[m"
 
