@@ -11,7 +11,7 @@ target_version_tag=
 auto_restart_enabled=no
 _in_stacktrace=0
 
-if [ "$1" == "--help" -o "$1" == "help" ]; then
+if [ "$1" == "--help" ] || [ "$1" == "help" ]; then
     echo "Usage: $0 [--all-tags [--page-size=25]] [--target-url=http] [--extract | [--version=0.0.0] [FILE]]"
 
     echo -e '\n\e[0;1mOPTIONS\e[m'
@@ -38,15 +38,15 @@ else
 
             if [ "${params[$i]}" == "--all-tags" ]; then
                 use_all_tags=1
-            elif [ "${params[$i]}" == "--extract" -o "${params[$i]}" == "--export" ]; then
-                if [ "$use_local_versions" == '/dev/null' -a -z "$target_version_tag" ]; then
+            elif [ "${params[$i]}" == "--extract" ] || [ "${params[$i]}" == "--export" ]; then
+                if [ "$use_local_versions" == '/dev/null' ] && [ -z "$target_version_tag" ]; then
                     extract_versions_only=1
                 fi
             elif [[ "${params[$i]}" == "--version"* ]]; then
                 if [ -n "$target_version_tag" ]; then
                     echo "Warning: Overriding target_version_tag from $target_version_tag to $temp"
                 fi
-                if [ $(echo "$temp" | grep -c '\-ce') -ne 1 ]; then
+                if [ "$(echo "$temp" | grep -c '\-ce')" -ne 1 ]; then
                     target_version_tag="$temp-ce.0"
                 else
                     target_version_tag=$temp
@@ -76,7 +76,7 @@ else
                 fi
                 PAGE_SIZE=$temp
             fi
-        elif [ -f "${params[$i]}" ] && [ "$use_local_versions" == '/dev/null' -a $extract_versions_only -eq 0 ]; then
+        elif [ -f "${params[$i]}" ] && [ "$use_local_versions" == '/dev/null' ] && [ $extract_versions_only -eq 0 ]; then
             echo "Using ${params[$i]} file to reduce time spent sorting version tags"
             cat -A "${params[$i]}" | tail -n1 | grep '\$' &> /dev/null
             if [ $? -ne 0 ]; then
@@ -111,7 +111,7 @@ if [ $? -ne 0 ]; then
 fi
 
 id | grep docker &> /dev/null
-if [ $? -ne 0 -a $UID -ne 0 ]; then
+if [ $? -ne 0 ] && [ $UID -ne 0 ]; then
     echo "The $USER user does not have enough docker.sock permissions." >&2
     exit 1
 fi
@@ -154,7 +154,7 @@ PORTS=$(docker inspect $CONTAINER_NAME --format='{{range $p, $conf := .HostConfi
     | awk -F: '{printf "-p %s:%s ", $2, $1}')
 
 send_discord_webhook() {
-    if [ -z "$DISCORD_URL" -o $# -ne 3 ]; then
+    if [ -z "$DISCORD_URL" ] || [ $# -ne 3 ]; then
         return 1
     fi
 
@@ -215,7 +215,7 @@ print_stacktrace_errors() {
     if [ $_in_stacktrace -eq 1 ]; then
         return 0
     fi
-    if [ $(docker inspect --format='{{.State.ExitCode}}' $CONTAINER_NAME) -ne 0 ]; then
+    if [ "$(docker inspect --format='{{.State.ExitCode}}' $CONTAINER_NAME)" -ne 0 ]; then
         _in_stacktrace=1
         echo -e "\nError: gitlab container died with the following status code: $(docker inspect --format='{{.State.ExitCode}}' $CONTAINER_NAME)" >&2
 
@@ -235,7 +235,7 @@ print_stacktrace_errors() {
             echo ' done'
 
             echo -n "removing previous $1 image..."
-            docker image rm $(docker images --format "{{.ID}}" gitlab/gitlab-ce) &> /dev/null
+            docker image rm "$(docker images --format "{{.ID}}" gitlab/gitlab-ce)" &> /dev/null
             echo ' done'
 
             docker pull gitlab/gitlab-ce:$2
@@ -245,7 +245,7 @@ print_stacktrace_errors() {
             spinner='/-\|'
             n=${#spinner}
             echo -n ' '
-            while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
+            while [ "$(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n")" != '200' ]; do
                 printf '\b%s' "${spinner:i++%n:1}"
                 print_stacktrace_errors
                 sleep 1
@@ -257,7 +257,7 @@ print_stacktrace_errors() {
             spinner='/-\|'
             n=${#spinner}
             echo -n ' '
-            while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+            while [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy)" -ne 1 ]; do
                 printf '\b%s' "${spinner:i++%n:1}"
                 print_stacktrace_errors
                 sleep 1
@@ -293,7 +293,7 @@ if ! docker ps --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"; then
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+    while [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy)" -ne 1 ]; do
         printf '\b%s' "${spinner:i++%n:1}"
         print_stacktrace_errors
         sleep 1
@@ -367,16 +367,16 @@ if [ "$use_local_versions" == '/dev/null' ]; then
         echo "Processing GitLab-CE container tags... Location: $TAGS_URL"
         ALL_TAGS=()
         if [ -z "$target_version_tag" ]; then
-            ALL_TAGS=($(curl -sf $TAGS_URL | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g'))
+            mapfile -t ALL_TAGS < <(curl -sf "$TAGS_URL" | jq -r '.all | unique[]' | sort -V | sed 's/$/-ce.0/g')
         else
-            TAGS=($(curl -sf $TAGS_URL | jq -r '.all[]' | sed 's/$/-ce.0/g'))
+            mapfile -t TAGS < <(curl -sf "$TAGS_URL" | jq -r '.all[]' | sed 's/$/-ce.0/g')
             CUSTOM_TAGS=("$target_version_tag")
-            ALL_TAGS=($(printf "%s\n" "${TAGS[@]}" "${CUSTOM_TAGS[@]}" | sort -Vu))
+            mapfile -t ALL_TAGS < <(printf "%s\n" "${TAGS[@]}" "${CUSTOM_TAGS[@]}" | sort -Vu)
         fi
 
         if [ $extract_versions_only -eq 1 ]; then
             echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
-            if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
+            if [ "$(wc -l < /tmp/gitlab-released-tags.txt)" -gt 3 ]; then
                 echo -e '\nNote: Successfully exported gitlab-ce released tags. These tags are already sorted in ASC order. Location: /tmp/gitlab-released-tags.txt'
                 exit 0
             else
@@ -400,14 +400,14 @@ if [ "$use_local_versions" == '/dev/null' ]; then
         echo "Spooling GitLab-CE container tags... Location: $TAGS_URL"
         while [ -n "$TAGS_URL" ]; do
             RESPONSE=$(curl -sL "$TAGS_URL")
-            TAGS=$(echo "$RESPONSE" | jq -r '.results[].name')
-            if [ -z "$TAGS" ]; then
+            mapfile -t TAGS < <(echo "$RESPONSE" | jq -r '.results[].name')
+            if [ ${#TAGS[@]} -eq 0 ]; then
                 break  # 더 이상 태그 없음
             else
                 CURRENT_PAGE=$(echo "$TAGS_URL" | grep -oP 'page=\K[0-9]+' || echo 1)
                 draw_progress $CURRENT_PAGE $TOTAL_PAGES 'Querying GitLab Releases' 'Page'
             fi
-            ALL_TAGS+=($TAGS)
+            ALL_TAGS+=("${TAGS[@]}")
             TAGS_URL=$(echo "$RESPONSE" | jq -r '.next // empty')
         done
 
@@ -451,7 +451,7 @@ if [ "$use_local_versions" == '/dev/null' ]; then
         rm /tmp/gitlab-parsed.log &> /dev/null
         if [ $extract_versions_only -eq 1 ]; then
             echo "${ALL_TAGS[@]}" | tr ' ' '\n' > /tmp/gitlab-released-tags.txt
-            if [ $(cat /tmp/gitlab-released-tags.txt | wc -l) -gt 3 ]; then
+            if [ "$(wc -l < /tmp/gitlab-released-tags.txt)" -gt 3 ]; then
                 echo -e '\nNote: Successfully exported gitlab-ce released tags. These tags are already sorted in ASC order. Location: /tmp/gitlab-released-tags.txt'
                 exit 0
             else
@@ -469,7 +469,7 @@ else
 
     if [ -n "$target_version_tag" ]; then
         CUSTOM_TAGS=("$target_version_tag")
-        RAW_TAGS=($(printf "%s\n" "${RAW_TAGS[@]}" "${CUSTOM_TAGS[@]}" | sort -Vu))
+        mapfile -t RAW_TAGS < <(printf "%s\n" "${RAW_TAGS[@]}" "${CUSTOM_TAGS[@]}" | sort -Vu)
     fi
 
     for idx in "${!RAW_TAGS[@]}"; do
@@ -596,7 +596,7 @@ echo -e "\t- I checked container PORTS: $(docker inspect $CONTAINER_NAME --forma
 echo -e "\t- I checked container DRIVE: $(docker inspect $CONTAINER_NAME --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')"
 echo -e "\t- I checked gitlab external_url in gitlab.rb file: $(docker exec $CONTAINER_NAME grep '^external_url' /etc/gitlab/gitlab.rb | awk -F"'" '{print $2}')"
 echo -e "\t- I checked gitlab backup_path in gitlab.rb file: $(docker exec $CONTAINER_NAME grep "'backup_path'" /etc/gitlab/gitlab.rb | awk -F"=" '{print $2}' | sed 's/\"//g' | sed 's/^ //')"
-if [ $(docker exec $CONTAINER_NAME gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;") -eq 0 ]; then
+if [ "$(docker exec $CONTAINER_NAME gitlab-psql -tAc "SELECT COUNT(*) FROM ci_runners;")" -eq 0 ]; then
     echo -e "\t- I checked this GitLab server has not configured any runners yet."
 else
     echo ''
@@ -612,7 +612,7 @@ fi
 
 echo -en "\nI accept the above notice and continue this job (y/N) > "
 read n
-if ! [ "$n" == "y" -o "$n" == "Y" ]; then
+if [ "$n" != "y" ] && [ "$n" != "Y" ]; then
     echo 'User abort' >&2
     exit 1
 fi
@@ -640,7 +640,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
         spinner='/-\|'
         n=${#spinner}
         echo -n ' '
-        while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+        while [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy)" -ne 1 ]; do
             printf '\b%s' "${spinner:i++%n:1}"
             print_stacktrace_errors
             sleep 1
@@ -662,7 +662,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     echo ' done'
 
     echo -n "removing previous $CNT_VERSION image..."
-    docker image rm $(docker images --format "{{.ID}}" gitlab/gitlab-ce) &> /dev/null
+    docker image rm "$(docker images --format "{{.ID}}" gitlab/gitlab-ce)" &> /dev/null
     echo ' done'
 
     docker pull gitlab/gitlab-ce:$ver
@@ -672,7 +672,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n") != '200' ]; do
+    while [ "$(curl -sf -o /dev/null $TARGET_URL/explore/projects -w "%{http_code}\n")" != '200' ]; do
         printf '\b%s' "${spinner:i++%n:1}"
         print_stacktrace_errors $ver $CNT_VERSION
         sleep 1
@@ -684,7 +684,7 @@ for ver in "${UPGRADE_POINTS_ARRAY[@]}"; do
     spinner='/-\|'
     n=${#spinner}
     echo -n ' '
-    while [ $(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy) -ne 1 ]; do
+    while [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME | grep -v unhealthy | grep -c healthy)" -ne 1 ]; do
         printf '\b%s' "${spinner:i++%n:1}"
         print_stacktrace_errors $ver $CNT_VERSION
         sleep 1

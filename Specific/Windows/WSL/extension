@@ -13,8 +13,8 @@ if [ $? -eq 0 ]; then
         dpkg --compare-versions "$local" lt "$release"
         if [ $? -eq 0 ]; then
             if [ -d ~/snap/neovim ]; then
-                cd ~/snap/neovim
-                git pull --rebase origin $(git branch --show-current)
+                cd ~/snap/neovim || exit
+                git pull --rebase origin "$(git branch --show-current)"
                 make CMAKE_BUILD_TYPE=Release
                 sudo make install
             else
@@ -90,9 +90,9 @@ find ~/.venv -maxdepth 1 -type d | while read venv; do
     if [ -x "$venv/bin/pip" ]; then
         echo -e "\n\033[37mupdater: Updating pip packages in: $venv...\033[m"
 
-        "$venv/bin/python" -m venv --upgrade $venv
+        "$venv/bin/python" -m venv --upgrade "$venv"
         "$venv/bin/python" -m pip install -U pip
-        "$venv/bin/python" -m pip install -U $(basename $venv)
+        "$venv/bin/python" -m pip install -U "$(basename "$venv")"
     fi
 done
 

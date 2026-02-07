@@ -21,7 +21,7 @@ target_app_pid=$!
 
 if [ $launched -eq 1 ]; then
     while :; do
-        ps -ef | grep -v grep | grep -v $(basename $0) | grep $target_app_pid &> /dev/null
+        ps -ef | grep -v grep | grep -v "$(basename "$0")" | grep "$target_app_pid" &> /dev/null
         if [ $? -ne 0 ]; then
             kill $spoofdpi_pid
             break

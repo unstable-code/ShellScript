@@ -1,8 +1,8 @@
 #!/bin/bash
 
 executePath=/mnt/c/Windows/System32
-if [ -x $executePath/shutdown.exe -o -x $executePath/rundll32.exe ]; then
-    cd $executePath 2> /dev/null
+if [ -x $executePath/shutdown.exe ] || [ -x $executePath/rundll32.exe ]; then
+    cd $executePath 2> /dev/null || exit
 else
     echo "powermgr: fatal error: unable to access daemon. please mount the Windows system volume C:\\."
     exit 1
@@ -33,8 +33,7 @@ function updateConfig() {
     echo "Please wait until updating your config file..."
     engageTime $1 5
     exportCmd="export QUIET_POWERMGR_SEQUENCE=TRUE # powermgr config"
-    echo "$exportCmd" >> $2
-    if [ $? != 0 ]; then
+    if ! echo "$exportCmd" >> $2; then
         echo "Failed to update config file. There are no changes."
         exit 1
     else
@@ -104,7 +103,7 @@ function executeCmd() {
         if [ $time -lt 15 ]; then
             echo -n "Warning! The time provided is shorter than the recommended time. would you like to proceed (y/N) > "
             read n
-            if ! [ "$n" == "y" -o "$n" == "Y" ]; then
+            if ! [ "$n" == "y" ] && ! [ "$n" == "Y" ]; then
                 echo -e "\e[1;31m$option\e[1;37m command aborted\e[m by user."
                 exit 2
             fi
@@ -127,13 +126,13 @@ function checkOption() {
     if [ "$QUIET_POWERMGR_SEQUENCE" != "TRUE" ]; then
         echo -en "Are you sure you want to \e[1;31m$1 \e[1;37mthe system\e[m now? (Y/n/d) > "
         read n
-        if [ "$n" == "N" -o "$n" == "n" ]; then
+        if [ "$n" == "N" ] || [ "$n" == "n" ]; then
             echo -e "\e[1;31m$1\e[1;37m command aborted\e[m by user."
-            if [ "$1" == "standby" -o "$1" == "hibernate" ]; then
+            if [ "$1" == "standby" ] || [ "$1" == "hibernate" ]; then
                 restoreSleepOption
             fi
             exit 2
-        elif [ "$n" == "D" -o "$n" == "d" ]; then
+        elif [ "$n" == "D" ] || [ "$n" == "d" ]; then
             if [ "$SHELL" == "/bin/bash" ]; then
                 updateConfig $1 ~/.bashrc
             elif [ "$SHELL" == "/bin/zsh" ]; then
@@ -151,15 +150,14 @@ function restoreSleepOption() {
     if [ "$changed" == "true" ]; then
         echo -n "Do you want to restore sleep settings to their previous values? (Y/n) > "
         read n
-        if [ "$n" == "n" -o "$n" == "N" ]; then
+        if [ "$n" == "n" ] || [ "$n" == "N" ]; then
             echo "Please manually adjust your sleep settings. The current setting is $option mode."
         else
             echo "NOTE: This operation requires administrator privileges."
             if [ "$option" == "standby" ]; then
                 if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
                     python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h on
-                    ls /mnt/c | grep hiberfil.sys &> /dev/null
-                    if [ $? == 0 ]; then
+                    if [ -f /mnt/c/hiberfil.sys ]; then
                         option="hibernate"
                         echo "Successfully restored to previous values."
                     else
@@ -171,8 +169,7 @@ function restoreSleepOption() {
             elif [ "$option" == "hibernate" ]; then
                 if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
                     python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h off
-                    ls /mnt/c | grep hiberfil.sys &> /dev/null
-                    if [ $? != 0 ]; then
+                    if [ ! -f /mnt/c/hiberfil.sys ]; then
                         option="standby"
                         echo "Successfully restored to previous values."
                     else
@@ -199,8 +196,7 @@ elif [ "$option" == "abort" ]; then
 elif [ "$option" == "sleep" ]; then
     if [ "$time" == "" ]; then
         while true; do
-            ls /mnt/c | grep hiberfil.sys &> /dev/null
-            if [ $? == 0 ]; then
+            if [ -f /mnt/c/hiberfil.sys ]; then
                 echo "NOTE: Methods marked with '*' require administrator privileges."
                 echo -n "Please choose a sleeping method (H: hibernate, s: standby*, c: cancel) > "
             else
@@ -208,20 +204,18 @@ elif [ "$option" == "sleep" ]; then
                 echo -n "Please choose a sleeping method (h: hibernate*, S: standby, c: cancel) > "
             fi
             read n
-            if [ "$n" == "c" -o "$n" == "C" ]; then
+            if [ "$n" == "c" ] || [ "$n" == "C" ]; then
                 echo -e "\e[1;31m$option\e[1;37m command aborted\e[m by user."
                 exit 2
-            elif [ "$n" == "h" -o "$n" == "H" ]; then
-                ls /mnt/c | grep hiberfil.sys &> /dev/null
-                if [ $? != 0 ]; then
+            elif [ "$n" == "h" ] || [ "$n" == "H" ]; then
+                if [ ! -f /mnt/c/hiberfil.sys ]; then
                     echo "The current system sleep option is set to standby. You need administrator privileges to change to hibernate mode."
                     echo -n "Are you sure you want to change this option? (y/N) > "
                     read n
-                    if [ "$n" == "y" -o "$n" == "Y" ]; then
+                    if [ "$n" == "y" ] || [ "$n" == "Y" ]; then
                         if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
                             python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h on
-                            ls /mnt/c | grep hiberfil.sys &> /dev/null
-                            if [ $? == 0 ]; then
+                            if [ -f /mnt/c/hiberfil.sys ]; then
                                 option="hibernate"
                                 changed="true"
                                 echo "NOTE: Do not unplug the power until the hibernation is completed."
@@ -244,17 +238,15 @@ elif [ "$option" == "sleep" ]; then
                     echo "NOTE: Do not unplug the power until the hibernation is completed."
                 fi
                 break
-            elif [ "$n" == "s" -o "$n" == "S" ]; then
-                ls /mnt/c | grep hiberfil.sys &> /dev/null
-                if [ $? == 0 ]; then
+            elif [ "$n" == "s" ] || [ "$n" == "S" ]; then
+                if [ -f /mnt/c/hiberfil.sys ]; then
                     echo "The current system sleep option is set to hibernate. You need administrator privileges to change to standby mode."
                     echo -n "Are you sure you want to change this option? (y/N) > "
                     read n
-                    if [ "$n" == "y" -o "$n" == "Y" ]; then
+                    if [ "$n" == "y" ] || [ "$n" == "Y" ]; then
                         if [ -r ~/.shellscript/wsl-sudo/wsl-sudo.py ]; then
                             python3 ~/.shellscript/wsl-sudo/wsl-sudo.py powercfg.exe -h off
-                            ls /mnt/c | grep hiberfil.sys &> /dev/null
-                            if [ $? != 0 ]; then
+                            if [ ! -f /mnt/c/hiberfil.sys ]; then
                                 option="standby"
                                 changed="true"
                                 echo "NOTE: If in the event of a power outage, all unsaved data may be lost."
@@ -281,8 +273,7 @@ elif [ "$option" == "sleep" ]; then
                 if [ "$n" != "" ]; then
                     echo "Unknown command $n, Skipping."
                 else
-                    ls /mnt/c | grep hiberfil.sys &> /dev/null
-                    if [ $? == 0 ]; then
+                    if [ -f /mnt/c/hiberfil.sys ]; then
                         option="hibernate"
                         echo "NOTE: Do not unplug the power until the hibernation is completed."
                     else
@@ -362,7 +353,7 @@ elif [ "$option" == "logout" ]; then
         exit 1
     fi
 
-elif [ "$option" == "help" -o x"$option" == x ]; then
+elif [ "$option" == "help" ] || [ x"$option" == x ]; then
     echo "usage: powermgr <option> [time] [comment]"
     echo "    halt: Shut down this computer"
     echo "  reboot: Restart this computer"

@@ -13,8 +13,8 @@ if [ $? -eq 0 ]; then
         target=$(vercmp $local $release)
         if [ $target -lt 0 ]; then
             if [ -d ~/snap/neovim ]; then
-                cd ~/snap/neovim
-                git pull --rebase origin $(git branch --show-current)
+                cd ~/snap/neovim || exit
+                git pull --rebase origin "$(git branch --show-current)"
                 make CMAKE_BUILD_TYPE=Release
                 sudo make install
             else
@@ -65,7 +65,7 @@ if [ $? -eq 0 ]; then
 fi
 
 if [ -x /usr/bin/vmplayer ]; then
-    vm_count=$(ls /lib/modules/$(uname -r)/misc 2> /dev/null | grep -c 'vm')
+    vm_count=$(ls "/lib/modules/$(uname -r)/misc" 2> /dev/null | grep -c 'vm')
     if [ $vm_count -ne 2 ]; then
         echo 'Installing VMware modules: vmnet, vmmon'
         sudo vmware-modconfig --console --install-all
@@ -89,7 +89,7 @@ fi
 #     sudo eos-rankmirrors
 # fi
 
-if [ $(systemctl is-enabled --user chrome-mimetype-remove) ]; then
+if systemctl is-enabled --quiet --user chrome-mimetype-remove; then
     systemctl start --user chrome-mimetype-remove
 fi
 
@@ -105,9 +105,9 @@ find ~/.venv -maxdepth 1 -type d | while read venv; do
     if [ -x "$venv/bin/pip" ]; then
         echo -e "\n\033[37mupdater: Updating pip packages in: $venv...\033[m"
 
-        "$venv/bin/python" -m venv --upgrade $venv
+        "$venv/bin/python" -m venv --upgrade "$venv"
         "$venv/bin/python" -m pip install -U pip
-        "$venv/bin/python" -m pip install -U $(basename $venv)
+        "$venv/bin/python" -m pip install -U "$(basename "$venv")"
     fi
 done
 

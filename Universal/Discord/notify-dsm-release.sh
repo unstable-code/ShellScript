@@ -28,7 +28,6 @@ LATEST_PATH=$(curl -s "$BASE_URL" \
 LATEST=$(basename "$LATEST_PATH")  # 예: 7.3.1-86003
 VERSION_PAGE="https://archive.synology.com${LATEST_PATH}"
 
-MAJOR=$(echo "$LATEST" | cut -d- -f1)
 BUILD=$(echo "$LATEST" | cut -d- -f2)
 
 #####################################

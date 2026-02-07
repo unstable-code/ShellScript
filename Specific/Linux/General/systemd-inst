@@ -12,7 +12,7 @@ fi
 launch_date=$(date '+%Y-%m-%d_%H%M%S')
 window_type=
 
-if [ "$1" == "-h" -o "$1" == "--help" ]; then
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo "USAGE: $0 [option] <systemd_unit_type> <source|name> [destination]"
     echo ""
     echo "OPTION"
@@ -60,7 +60,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ $# -lt 2 -o $# -gt 3 ]; then
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
     echo "Invalid number of arguments. Please see \`--help\`" >&2
     exit 1
 fi
@@ -148,7 +148,7 @@ else
     sudo systemctl edit $target_name.$1
     exit $?
 fi
-if ! [ "$n" == "Y" -o "$n" == "y" ]; then
+if [ "$n" != "Y" ] && [ "$n" != "y" ]; then
     echo "Aborted."
     exit 1
 fi
@@ -175,7 +175,7 @@ if [ "$unit_type" == "system" ]; then
         "service"|"target"|"mount"|"path"|"automount")
             echo -n "Does this $target_name.$1 require GUI? (y/N) > "
             read n
-            if [ "$n" == "y" -o "$n" == "Y" ]; then
+            if [ "$n" == "y" ] || [ "$n" == "Y" ]; then
                 window_type="graphical.target"
             else
                 window_type="multi-user.target"
@@ -273,7 +273,7 @@ if ! [ x$target_path == x ]; then
 else
     n=y
 fi
-if [ "$n" == "y" -o "$n" == "Y" ]; then
+if [ "$n" == "y" ] || [ "$n" == "Y" ]; then
     cp /tmp/systemd-inst-$launch_date /tmp/systemd-inst-$launch_date.bak
     vi /tmp/systemd-inst-$launch_date
     cmp -s /tmp/systemd-inst-$launch_date /tmp/systemd-inst-$launch_date.bak
@@ -310,13 +310,13 @@ if [ "$unit_type" == "user" ]; then
     systemctl --user status $target_name
     echo -n "Would you like to enable your $target_name.$1? (Y/n) > "
     read n
-    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+    if [ "$n" != "N" ] && [ "$n" != "n" ]; then
         systemctl --user enable $target_name.$1
     fi
 
     echo -n "Would you like to start your $target_name.$1? (Y/n) > "
     read n
-    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+    if [ "$n" != "N" ] && [ "$n" != "n" ]; then
         systemctl --user start $target_name.$1
     fi
     systemctl --user status $target_name.$1
@@ -324,13 +324,13 @@ else
     systemctl status $target_name
     echo -n "Would you like to enable your $target_name.$1? (Y/n) > "
     read n
-    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+    if [ "$n" != "N" ] && [ "$n" != "n" ]; then
         sudo systemctl enable $target_name.$1
     fi
 
     echo -n "Would you like to start your $target_name.$1? (Y/n) > "
     read n
-    if ! [ "$n" == "N" -o "$n" == "n" ]; then
+    if [ "$n" != "N" ] && [ "$n" != "n" ]; then
         sudo systemctl start $target_name.$1
     fi
     systemctl status $target_name.$1

@@ -173,7 +173,7 @@ function mediaDownloader() {
 }
 
 function mediaCount() {
-    ps -ef | grep "$yt_dlp" | grep -vEc "grep|$1 $yt_dlp" | grep -v "caffeinate"
+    ps -ef | grep "$yt_dlp" | grep -v "grep" | grep -vc "caffeinate"
 }
 
 function mediaList() {
