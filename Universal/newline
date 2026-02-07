@@ -1,14 +1,15 @@
 #!/bin/bash
 
-if [ $# -eq 0 -a -t 0 ]; then
+if [ $# -eq 0 ] && [ -t 0 ]; then
     echo "Usage: newline [options] [<files>]" >&2
     exit 2
-elif [ "$1" == "-i" -o "$1" == "--info" ]; then
+elif [ "$1" == "-i" ] || [ "$1" == "--info" ]; then
     newline=0
     if [ -t 0 ]; then
         params=("${@}")
     else
-        params=("${@}" $(cat /dev/stdin))
+        mapfile -t stdin_lines < /dev/stdin
+        params=("${@}" "${stdin_lines[@]}")
     fi
     for i in "${!params[@]}"; do
         if [[ "${params[$i]}" != "-"* ]]; then
@@ -18,29 +19,27 @@ elif [ "$1" == "-i" -o "$1" == "--info" ]; then
                 echo "or use this command: \`find $change_params -type f | newline --info\`" >&2
                 continue
             elif [ -f "${params[$i]}" ]; then
-                if [ $newline -gt 0 ]; then
+                if [ "$newline" -gt 0 ]; then
                     echo ""
                 fi
-                binary_check=$(file -bL --mime "${params[$i]}" | grep "binary")
-                if [ $? -eq 0 ]; then
+                if file -bL --mime "${params[$i]}" | grep -q "binary"; then
                     echo "skipping ${params[$i]} file. reason: binary file." >&2
                     continue
                 fi
                 file "${params[$i]}" 2> /dev/null
-                which xxd &> /dev/null
-                if [ $? -eq 0 ]; then
+                if which xxd &> /dev/null; then
                     xxd -l 32 "${params[$i]}"
                 else
                     echo "Please install vim to use xxd command." >&2
                 fi
-                newline=$(expr $newline + 1)
+                newline=$(( newline + 1 ))
             else
                 echo "unable to locate ${params[$i]} file. no such file or directory" >&2
             fi
         fi
     done
     exit 0
-elif [ "$1" == "-h" -o "$1" == "--help" ]; then
+elif [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo 'Determine type of files or converting EOL between LF and CRLF.'
     echo -e '\nUsage: newline [options] [<files>]'
     echo -e '\nOptions: '
@@ -76,14 +75,15 @@ constantBOM=""
 if [ -t 0 ]; then
     params=("${@}")
 else
-    params=("${@}" $(cat /dev/stdin))
+    mapfile -t stdin_lines < /dev/stdin
+    params=("${@}" "${stdin_lines[@]}")
 fi
 
 for i in "${!params[@]}"; do
     if [[ "${params[$i]}" == "-"* ]]; then
-        if [ "${params[$i]}" == "--type=LF" -o "${params[$i]}" == "--type=lf" ]; then
+        if [ "${params[$i]}" == "--type=LF" ] || [ "${params[$i]}" == "--type=lf" ]; then
             constantEOF="LF"
-        elif [ "${params[$i]}" == "--type=CRLF" -o "${params[$i]}" == "--type=crlf" ]; then
+        elif [ "${params[$i]}" == "--type=CRLF" ] || [ "${params[$i]}" == "--type=crlf" ]; then
             constantEOF="CRLF"
         elif [ "${params[$i]}" == "--bom" ]; then
             constantBOM="ADD"
@@ -99,7 +99,7 @@ for i in "${!params[@]}"; do
     if [ -d "${params[$i]}" ]; then
         change_params=$(echo "${params[$i]}" | sed 's/\/$//')
         echo "Please change ${params[$i]} to $change_params/*" >&2
-        if [ x$constantEOF == x ]; then
+        if [ -z "$constantEOF" ]; then
             echo "or use this command: \`find $change_params -type f | newline\`" >&2
         else
             echo "or use this command: \`find $change_params -type f | newline --type=$constantEOF\`" >&2
@@ -113,8 +113,7 @@ for i in "${!params[@]}"; do
         continue
     fi
 
-    binary_check=$(file -bL --mime "${params[$i]}" | grep "binary")
-    if [ $? -eq 0 ]; then
+    if file -bL --mime "${params[$i]}" | grep -q "binary"; then
         echo "skipping ${params[$i]} file. reason: binary file." >&2
         continue
     fi
@@ -146,7 +145,7 @@ for i in "${!params[@]}"; do
         if [[ "$current_charset" == "utf-8" || "$current_charset" == "us-ascii" ]]; then
             if [ "$constantBOM" == "ADD" ]; then
                 if [ "$current_bom" != "$target_bom" ]; then
-                    printf "$target_bom" > "${params[$i]}.tmp"
+                    printf '%s' "$target_bom" > "${params[$i]}.tmp"
                     cat "${params[$i]}" >> "${params[$i]}.tmp"
                     mv "${params[$i]}.tmp" "${params[$i]}"
                     echo "${params[$i]}: Added UTF-8 BOM."
@@ -163,4 +162,3 @@ for i in "${!params[@]}"; do
         fi
     fi
 done
-

@@ -5,7 +5,7 @@ filename=()
 verbose=0
 count=1
 
-if [ "$1" == '--help' -o "$1" == '-h' ]; then
+if [ "$1" == '--help' ] || [ "$1" == '-h' ]; then
     echo 'extract-rand-contents [option] [<file>]'
     echo -e "-h, --help:\tshow this help"
     echo -e "-v, --verbose:\tshow what's going on"
@@ -16,8 +16,8 @@ elif [ $# -eq 0 ]; then
     exit 1
 fi
 
-verify=$(echo "$(uptime -r | awk '{ print $1 }')Z$(shasum -a 256 $0 | awk '{ print $1 }')A$(uptime -r | awk '{ print $2 }' | cut -d. -f1)")
-if [ -z $verify ]; then
+verify="$(uptime -r | awk '{ print $1 }')Z$(shasum -a 256 "$0" | awk '{ print $1 }')A$(uptime -r | awk '{ print $2 }' | cut -d. -f1)"
+if [ -z "$verify" ]; then
     exit 127
 else
     echo -e "\e[30m[SEED] $verify\e[m"
@@ -26,21 +26,22 @@ fi
 for i in "${!params[@]}"; do
     if [[ "${params[$i]}" != "-"* ]]; then
         if [ -r "${params[$i]}" ]; then
-            unsupported_character_count=$(cat "${params[$i]}" | grep -c ' ')
-            if [ $unsupported_character_count -ne 0 ]; then
+            unsupported_character_count=$(grep -c ' ' "${params[$i]}")
+            if [ "$unsupported_character_count" -ne 0 ]; then
                 echo -e "\e[33m[WARN] $unsupported_character_count spaceing character(s) detected\e[m"
                 echo -e "\e[33m[WARN] please replace all spacing character to \`-\` or \`_\` to avoid unexpected operation. check ${params[$i]}\e[m"
             fi
-            contents+=($(cat "${params[$i]}" | tr '\n' ' '))
+            mapfile -t tmp_contents < "${params[$i]}"
+            contents+=("${tmp_contents[@]}")
             filename+=("${params[$i]}")
         fi
-    elif [ "${params[$i]}" == '-v' -o "${params[$i]}" == '--verbose' ]; then
+    elif [ "${params[$i]}" == '-v' ] || [ "${params[$i]}" == '--verbose' ]; then
         verbose=1
     elif [[ "${params[$i]}" == '--count='* ]]; then
         if [ $verbose -eq 1 ]; then
-            echo "[INFO] altered generate elements count: $(echo ${params[$i]} | sed 's/--count=//') (prev. $count)"
+            echo "[INFO] altered generate elements count: ${params[$i]//--count=/} (prev. $count)"
         fi
-        count=$(echo "${params[$i]}" | sed 's/--count=//')
+        count="${params[$i]//--count=/}"
     fi
 done
 
@@ -57,25 +58,25 @@ if [ $verbose -eq 1 ]; then
 fi
 for i in "${!contents[@]}"; do
     if [ $verbose -eq 1 ]; then
-        echo -e "[INFO] ($(expr $i + 1)/${#contents[@]}):\t\t^${contents[$i]}$"
+        echo -e "[INFO] ($(( i + 1 ))/${#contents[@]}):\t\t^${contents[$i]}$"
     fi
 done
 if [ $verbose -eq 1 ]; then
     echo '[INFO] Successfully loaded provided input.'
 fi
 
-if [ ${#contents[@]} -lt $count ]; then
+if [ ${#contents[@]} -lt "$count" ]; then
     echo -e '\e[33m[WARN] possible ArrayIndexOutOfBounds excception\e[m'
     echo -e "\e[33m[WARN] provided count: $count, total length: ${#contents[@]}\e[m"
 fi
 
-for ((i=1;i<=$count;i++)); do
+for ((i=1;i<=count;i++)); do
     if [ ${#contents[@]} -eq 0 ]; then
         echo -e "\e[31m[ ERR] Array index out of range: ${#contents[@]}. Aborting.\e[m"
         exit 1
     fi
 
-    result=$(expr $RANDOM % ${#contents[@]})
+    result=$(( RANDOM % ${#contents[@]} ))
     echo -e "\e[32mresult[$i]: ${contents[$result]}\e[m"
     unset "contents[$result]"
     contents=("${contents[@]}")

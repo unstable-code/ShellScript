@@ -27,16 +27,14 @@ function gitUpdate() {
     for target in "${repoName[@]}"; do
         if [ -d "$HOME/Documents/$target" ]; then
             echo -e "\n\033[37mupdater: Updating repo ~/Documents/$target...\033[m"
-            cd "$HOME/Documents/$target"
-            git pull --rebase --stat origin $(git branch --show-current)
-            if [ $? -ne 0 ]; then
+            cd "$HOME/Documents/$target" || return
+            if ! git pull --rebase --stat origin "$(git branch --show-current)"; then
                 git status
             fi
 
-            cd - &>/dev/null
-            if [ $? -ne 0 ]; then
+            if ! cd - &>/dev/null; then
                 echo -e "\033[31mupdater: exception occurred: return original directory function corrupted: $prevDir currently not accessible. \033[m"
-                cd ~
+                cd ~ || return
                 echo "updater: autofix: Fix broken original directory to $HOME."
             fi
         fi
@@ -72,10 +70,11 @@ if [ "$(uname -s)" == "Darwin" ]; then
 elif [ "$(uname -s)" == "Linux" ]; then
     if [ -x ~/Documents/Release/aptall/aptall.sh ]; then
         ~/Documents/Release/aptall/aptall.sh "$@"
-        if [ $? -ne 127 -a $# == 0 ]; then
+        aptall_exit=$?
+        if [ $aptall_exit -ne 127 ] && [ $# == 0 ]; then
             gitUpdate
         fi
-        exitCode=$?
+        exitCode=$aptall_exit
     else
         gitUpdate
     fi
