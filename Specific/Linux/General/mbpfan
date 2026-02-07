@@ -143,7 +143,7 @@ elif [ "$1" == "get" ] && [ $# -ge 2 -a $# -le 3 ]; then
             elif [ "$3" == 'cnt' ]; then
                 sensors -u applesmc-isa-0300 | grep fan | grep input | cut -d. -f1 | sed 's/^  /cnt_/' | sed 's/: / = /' | sed 's/input/speed/'
             else
-                echo "unknown options: ${@}" >&2
+                echo "unknown options: $*" >&2
                 exit 1
             fi
         fi
@@ -161,12 +161,12 @@ elif [ "$1" == "get" ] && [ $# -ge 2 -a $# -le 3 ]; then
             elif [ "$3" == 'cnt' ]; then
                 sensors -u coretemp-isa-0000 | grep temp._input | cut -d. -f1 | sed 's/^  /cnt_cpu_/' | sed 's/: / = /' | sed 's/_input//'
             else
-                echo "unknown options: ${@}" >&2
+                echo "unknown options: $*" >&2
                 exit 1
             fi
         fi
     else
-        echo "unknown options: ${@}" >&2
+        echo "unknown options: $*" >&2
         exit 1
     fi
 elif [ "$1" == "ls" -o "$1" == "list" ]; then
@@ -439,6 +439,6 @@ elif [ "$1" == "help" ]; then
     echo -e '\nAVAILABLE PROFILES'
     ls /etc/mbpfan.d | grep -v $(basename `readlink /etc/mbpfan.conf`) | sed 's/^/ /'
 else
-    echo "unknown options: ${@}" >&2
+    echo "unknown options: $*" >&2
     exit 1
 fi

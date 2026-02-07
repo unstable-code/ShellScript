@@ -3,7 +3,7 @@
 target=$(basename $0 | sed 's/-.*//')
 
 if [ "$target" == "firefox" ]; then
-    $target --private-window $@
+    "$target" --private-window "$@"
 else
-    $target --incognito $@
+    "$target" --incognito "$@"
 fi

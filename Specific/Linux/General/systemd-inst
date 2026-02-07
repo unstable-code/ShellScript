@@ -42,7 +42,7 @@ elif [ $# -lt 2 ]; then
     if [ $# -eq 0 ]; then
         echo "This script does not have a configured default parameter type. Please see \`--help\`" >&2
     else
-        echo "Unknown parameter type: $@. Please see \`--help\`" >&2
+        echo "Unknown parameter type: $*. Please see \`--help\`" >&2
     fi
     exit 1
 fi
