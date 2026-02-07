@@ -16,7 +16,7 @@ function daemon-reload() {
         logger --tag mbpfan --priority daemon.debug "successfully verified symbolic link /etc/mbpfan.conf <--> /etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")"
         logger --tag mbpfan --priority daemon.debug "loaded profile name: $(basename "$(readlink /etc/mbpfan.conf)")"
         systemctl daemon-reload
-        cat /etc/mbpfan.conf | sed 's/#.*//' | sed '/^$/d' | logger --tag mbpfan --priority daemon.debug
+        sed 's/#.*//' /etc/mbpfan.conf | sed '/^$/d' | logger --tag mbpfan --priority daemon.debug
         if systemctl restart mbpfan; then
             logger --tag mbpfan --priority daemon.debug 'successfully restarted mbpfan daemon'
             logger --tag mbpfan --priority daemon.notice 'If the current fan speed is greater than the maximum fan speed, it may take longer for the changes to take effect.'
@@ -90,8 +90,8 @@ if [ $# -eq 0 ] || [ "$1" == "status" ]; then
         echo "inherited = $(ls -li /etc/mbpfan.d | grep -v 'total' | grep -v "$(basename "$(readlink /etc/mbpfan.conf)")" | grep "$match_inode" | awk '{ print $10 }' | tr '\n' ' ')"
     fi
 
-    cat /etc/mbpfan.conf | grep '^m.._fan._speed =' | awk -F '#' '{ print $1 }' | sed 's/$/\t(±0.35%)/'
-    cat /etc/mbpfan.conf | grep 'temp =' | awk -F '#' '{ print $1 }'
+    grep '^m.._fan._speed =' /etc/mbpfan.conf | awk -F '#' '{ print $1 }' | sed 's/$/\t(±0.35%)/'
+    grep 'temp =' /etc/mbpfan.conf | awk -F '#' '{ print $1 }'
     sensors -u applesmc-isa-0300 | grep fan | grep input | cut -d. -f1 | sed 's/^  /cnt_/' | sed 's/: / = /' | sed 's/input/speed/'
     sensors -u coretemp-isa-0000 | grep temp._input | cut -d. -f1 | sed 's/^  /cnt_cpu_/' | sed 's/: / = /' | sed 's/_input//'
 
@@ -132,21 +132,21 @@ elif [ $# -ge 2 ] && [ "$1" == "show" ]; then
             echo "inherited = $(ls -li /etc/mbpfan.d | grep -v 'total' | grep -v "${target[$i]}" | grep "$match_inode" | awk '{ print $10 }' | tr '\n' ' ')"
         fi
 
-        cat "/etc/mbpfan.d/${target[$i]}" | grep '^m.._fan._speed =' | awk -F '#' '{ print $1 }' | sed 's/$/\t(±0.35%)/'
-        cat "/etc/mbpfan.d/${target[$i]}" | grep 'temp =' | awk -F '#' '{ print $1 }'
+        grep '^m.._fan._speed =' "/etc/mbpfan.d/${target[$i]}" | awk -F '#' '{ print $1 }' | sed 's/$/\t(±0.35%)/'
+        grep 'temp =' "/etc/mbpfan.d/${target[$i]}" | awk -F '#' '{ print $1 }'
     done
 elif [ "$1" == "get" ] && [ $# -ge 2 ] && [ $# -le 3 ]; then
     if [ "$2" == "name" ]; then
         basename "$(readlink /etc/mbpfan.conf)"
     elif [ "$2" == "speed" ]; then
         if [ $# -eq 2 ]; then
-            cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep '^m.._fan._speed =' | awk -F '#' '{ print $1 }'
+            grep '^m.._fan._speed =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             sensors -u applesmc-isa-0300 | grep fan | grep input | cut -d. -f1 | sed 's/^  /cnt_/' | sed 's/: / = /' | sed 's/input/speed/'
         else
             if [ "$3" == 'min' ]; then
-                cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep '^min_fan._speed =' | awk -F '#' '{ print $1 }'
+                grep '^min_fan._speed =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             elif [ "$3" == 'max' ]; then
-                cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep '^max_fan._speed =' | awk -F '#' '{ print $1 }'
+                grep '^max_fan._speed =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             elif [ "$3" == 'cnt' ]; then
                 sensors -u applesmc-isa-0300 | grep fan | grep input | cut -d. -f1 | sed 's/^  /cnt_/' | sed 's/: / = /' | sed 's/input/speed/'
             else
@@ -156,15 +156,15 @@ elif [ "$1" == "get" ] && [ $# -ge 2 ] && [ $# -le 3 ]; then
         fi
     elif [ "$2" == "temp" ]; then
         if [ $# -eq 2 ]; then
-            cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep 'temp =' | awk -F '#' '{ print $1 }'
+            grep 'temp =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             sensors -u coretemp-isa-0000 | grep temp._input | cut -d. -f1 | sed 's/^  /cnt_cpu_/' | sed 's/: / = /' | sed 's/_input//'
         else
             if [ "$3" == 'low' ]; then
-                cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep 'low_temp =' | awk -F '#' '{ print $1 }'
+                grep 'low_temp =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             elif [ "$3" == 'high' ]; then
-                cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep 'high_temp =' | awk -F '#' '{ print $1 }'
+                grep 'high_temp =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             elif [ "$3" == 'max' ]; then
-                cat "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | grep 'max_temp =' | awk -F '#' '{ print $1 }'
+                grep 'max_temp =' "/etc/mbpfan.d/$(basename "$(readlink /etc/mbpfan.conf)")" | awk -F '#' '{ print $1 }'
             elif [ "$3" == 'cnt' ]; then
                 sensors -u coretemp-isa-0000 | grep temp._input | cut -d. -f1 | sed 's/^  /cnt_cpu_/' | sed 's/: / = /' | sed 's/_input//'
             else

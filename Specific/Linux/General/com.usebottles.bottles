@@ -1,5 +1,5 @@
 #!/bin/bash
 
-target=$(basename $0)
+target=$(basename "$0")
 
-nice -n 15 flatpak run --command=bottles-cli com.usebottles.bottles run -b $target -p $target
+nice -n 15 flatpak run --command=bottles-cli com.usebottles.bottles run -b "$target" -p "$target"

@@ -82,11 +82,11 @@ else
             fi
 
             grep -viE '(rc|nightly|latest)' "${params[$i]}" > "${params[$i]}.tmp" && mv "${params[$i]}.tmp" "${params[$i]}"
-            requirements=$(cat "${params[$i]}" | grep -cE '^[0-9]+\.[0-9]+\.[0-9]+-ce\.[0-9]+$')
-            total=$(cat "${params[$i]}" | wc -l)
+            requirements=$(grep -cE '^[0-9]+\.[0-9]+\.[0-9]+-ce\.[0-9]+$' "${params[$i]}")
+            total=$(wc -l < "${params[$i]}")
             if [ "$requirements" -ne "$total" ]; then
                 echo "Error: Provided file contents do not contain gitlab-ce version tags" >&2
-                cat "${params[$i]}" | head -n 10 >&2
+                head -n 10 "${params[$i]}" >&2
                 continue
             else
                 use_local_versions=${params[$i]}

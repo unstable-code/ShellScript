@@ -45,7 +45,9 @@ elif [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo -e '\nOptions: '
     echo -e ' -h, --help\t\tdisplay this help and exit'
     echo -e ' -i, --info FILEs\tdisplay provide file type and properties'
+    # shellcheck disable=SC2016
     echo -e '     --type=EOL\t\tlimiting `EOL` type when using converter'
+    # shellcheck disable=SC2016
     echo -e '\t\t\t`EOL` only accepted `CRLF` and `LF` (NAK `\\r\\n` or `\\n`)'
     echo -e ' --bom\t\t\tensure file has UTF-8 BOM'
     echo -e ' --nobom\t\tremove UTF-8 BOM from file'

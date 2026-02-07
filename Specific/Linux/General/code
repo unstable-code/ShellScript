@@ -1,7 +1,8 @@
 #!/bin/sh
 
-if [ -f $HOME/.config/code-flags.conf ]; then
-    CODE_USER_FLAGS="$(sed 's/#.*//' $HOME/.config/code-flags.conf | tr '\n' ' ')"
+if [ -f "$HOME/.config/code-flags.conf" ]; then
+    CODE_USER_FLAGS="$(sed 's/#.*//' "$HOME/.config/code-flags.conf" | tr '\n' ' ')"
 fi
 
+# shellcheck disable=SC2086
 /usr/bin/code "$@" $CODE_USER_FLAGS

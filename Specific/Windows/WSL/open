@@ -39,9 +39,7 @@ for item in "${files[@]}"; do
     [ -e "$item" ] && target_path=$(readlink -f "$item") || target_path="$item"
 
     # 윈도우 경로로 변환 시도
-    winPath=$(wslpath -w "$target_path" 2> /dev/null)
-
-    if [ $? -eq 0 ]; then
+    if winPath=$(wslpath -w "$target_path" 2> /dev/null); then
         # 윈도우 파일/폴더인 경우
         if [ "$forceTOTALCMD" == "true" ] && [ -x "$TOTALCMD_PATH" ]; then
             # 디렉토리인지 확인 (powershell 호출 대신 리눅스에서 판단 후 넘김)

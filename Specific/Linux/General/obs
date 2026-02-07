@@ -1,4 +1,4 @@
 #!/bin/bash
 
-rm -rf $HOME/.config/obs-studio/.sentinel &> /dev/null
+rm -rf "$HOME/.config/obs-studio/.sentinel" &> /dev/null
 /usr/bin/obs --disable-shutdown-check "$@"
