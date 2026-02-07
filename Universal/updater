@@ -61,7 +61,7 @@ fi
 
 if [ "$(uname -s)" == "Darwin" ]; then
     if [ -x ~/Documents/Release/brewall/brewall.sh ]; then
-        ~/Documents/Release/brewall/brewall.sh $@
+        ~/Documents/Release/brewall/brewall.sh "$@"
         if [ $# == 0 ]; then
             gitUpdate
         fi
@@ -71,7 +71,7 @@ if [ "$(uname -s)" == "Darwin" ]; then
     fi
 elif [ "$(uname -s)" == "Linux" ]; then
     if [ -x ~/Documents/Release/aptall/aptall.sh ]; then
-        ~/Documents/Release/aptall/aptall.sh $@
+        ~/Documents/Release/aptall/aptall.sh "$@"
         if [ $? -ne 127 -a $# == 0 ]; then
             gitUpdate
         fi
