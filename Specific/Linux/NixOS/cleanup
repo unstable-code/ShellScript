@@ -1,0 +1,8 @@
+#!/run/current-system/sw/bin/bash
+set -e
+
+sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5
+nix-env --delete-generations old
+sudo nix-collect-garbage -d
+sudo journalctl --vacuum-size=100M
+nix-store --optimize
