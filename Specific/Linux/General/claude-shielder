@@ -1,0 +1,23 @@
+#!/bin/bash
+
+TARGET="/tmp"
+
+# -m: 지속 모니터링, -e create: 생성 이벤트만, --format %f: 파일명만 출력
+inotifywait -m -q -e create --format '%f' "$TARGET" | while read -r FILENAME
+do
+    # 1. 파일명이 claude로 시작하는지 확인
+    if [[ "$FILENAME" == claude* ]]; then
+        # 2. 파일/폴더의 현재 권한 확인 (8진수)
+        # stat 실행 시 파일이 그새 사라질 수 있으므로 에러 무시 처리
+        CURRENT_PERM=$(stat -c "%a" "$TARGET/$FILENAME" 2>/dev/null)
+
+        # 3. 권한이 700이 아닌 경우에만 chmod 실행 (불필요한 쓰기 방지)
+        if [ -n "$CURRENT_PERM" ] && [ "$CURRENT_PERM" != "700" ]; then
+            if chmod 700 "$TARGET/$FILENAME" 2>/dev/null; then
+                logger -t "claude-shield" -p user.info "Successfully locked $FILENAME (700)"
+            else
+                logger -t "claude-shield" -p user.err "Failed to lock $FILENAME"
+            fi
+        fi
+    fi
+done
