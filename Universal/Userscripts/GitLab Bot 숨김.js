@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2026.02090
+// @version      2026.02091
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -65,18 +65,6 @@
         });
     }
 
-    function highlightRows() {
-        document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
-            const created = tr.querySelector('td[data-label="Created on"] span');
-            const last = tr.querySelector('td[data-label="Last activity"] span');
-
-            if (created && last && created.textContent.trim() === last.textContent.trim()) {
-                last.style.color = 'purple';
-                last.closest('td').style.color = 'purple';
-            }
-        });
-    }
-
     function highlightRecentActivity() {
         const now = new Date();
         document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
@@ -102,9 +90,12 @@
             } else if (diffDays <= 90) {
                 lastSpan.style.color = 'yellow';
                 lastSpan.closest('td').style.color = 'yellow';
-            } else {
+            } else if (diffDays <= 180) {
                 lastSpan.style.color = 'orange';
                 lastSpan.closest('td').style.color = 'orange';
+            } else {
+                lastSpan.style.color = 'red';
+                lastSpan.closest('td').style.color = 'red';
             }
         });
     }
@@ -127,13 +118,38 @@
         th.style.textAlign = 'center';
     }
 
+    function insertStatusMessage() {
+        const mainContent = document.querySelector('main#content-body');
+        if (!mainContent) return;
+
+        // 중복 생성 방지: 이미 'custom-status-msg'라는 ID를 가진 p가 있는지 확인
+        if (document.getElementById('custom-status-msg')) return;
+
+        const p = document.createElement('p');
+        p.id = 'custom-status-msg';
+        p.innerHTML = `
+            <b>lime</b>: ~3, <b>green</b>: ~7, <b>darkgreen</b>: ~30,
+            <b>yellow</b>: ~90, <b>orange</b>: ~180, <b>red</b>: etc.
+        `;
+        p.style.cssText = `
+            margin-top: 20px;
+            padding: 10px;
+            color: #888;
+            font-size: 12px;
+            text-align: center;
+            border-top: 1px solid #eee;
+        `;
+
+        mainContent.appendChild(p); // main의 마지막 자식으로 추가
+    }
+
     // 처음 로드 시 실행
     hideBotRows();
     highlightZeros();
     highlightNever();
     highlightRecentActivity();
-    highlightRows();
     insertCurrentDate();
+    insertStatusMessage();
 
     // 동적 로딩 대응
     const observer = new MutationObserver(() => {
@@ -141,8 +157,8 @@
         highlightZeros();
         highlightNever();
         highlightRecentActivity();
-        highlightRows();
         insertCurrentDate();
+        insertStatusMessage();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
