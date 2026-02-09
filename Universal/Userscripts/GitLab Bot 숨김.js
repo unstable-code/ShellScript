@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2025.10270
+// @version      2026.02090
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -14,10 +14,19 @@
 
     function hideBotRows() {
         document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
-            // tr 내부에 Bot 배지가 있는지 확인
-            const botBadge = tr.querySelector('span.badge, span.gl-badge-content');
-            if (botBadge && botBadge.textContent.trim() === 'Bot') {
-                tr.style.display = 'none';
+            // 1. span.badge 또는 .gl-badge 클래스를 가진 요소를 모두 찾습니다.
+            const badges = tr.querySelectorAll('span.badge, .gl-badge, .gl-badge-content');
+
+            let isBot = false;
+            badges.forEach(badge => {
+                // 텍스트에 'Bot'이 포함되어 있는지 확인 (대소문자 구분 없이 검색하면 더 안전함)
+                if (badge.textContent.includes('Bot')) {
+                    isBot = true;
+                }
+            });
+
+            if (isBot) {
+                tr.style.setProperty('display', 'none', 'important'); // !important 추가로 스타일 우선순위 확보
             }
         });
     }
