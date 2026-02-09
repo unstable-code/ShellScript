@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2026.02094
+// @version      2026.02095
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -11,6 +11,11 @@
 
 (function() {
     'use strict';
+
+    const expiryMap = {
+        'gitlab.pixelboost.synology.me': 180,
+        'gitlab.gggames.synology.me': 90
+    };
 
     function hideBotRows() {
         document.querySelectorAll('tr[data-testid="user-row-content"]').forEach(tr => {
@@ -77,27 +82,6 @@
             const lastDate = new Date(text);
             if (isNaN(lastDate)) return; // 파싱 실패 시 무시
 
-            const diffDays = (now - lastDate) / (1000 * 60 * 60 * 24);
-            if (diffDays <= 3) {
-                lastSpan.style.color = 'lime';
-                lastSpan.closest('td').style.color = 'lime';
-            } else if (diffDays <= 7) {
-                lastSpan.style.color = 'green';
-                lastSpan.closest('td').style.color = 'green';
-            } else if (diffDays <= 30) {
-                lastSpan.style.color = 'darkgreen';
-                lastSpan.closest('td').style.color = 'darkgreen';
-            } else if (diffDays <= 90) {
-                lastSpan.style.color = 'yellow';
-                lastSpan.closest('td').style.color = 'yellow';
-            } else if (diffDays <= 180) {
-                lastSpan.style.color = 'orange';
-                lastSpan.closest('td').style.color = 'orange';
-            } else {
-                lastSpan.style.color = 'red';
-                lastSpan.closest('td').style.color = 'red';
-            }
-
             const s = Math.floor((now - lastDate) / 1000);
             if (s < 60) {
                 lastSpan.textContent = 'Just now';
@@ -114,7 +98,8 @@
             }
 
             // 1. 만료일 및 D-Day 계산
-            const expDate = new Date(lastDate.getTime() + (180 * 24 * 60 * 60 * 1000));
+            const expiryDays = expiryMap[window.location.hostname] || 180;
+            const expDate = new Date(lastDate.getTime() + (expiryDays * 24 * 60 * 60 * 1000));
             const dDay = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)); // 남은 일수
 
             // 2. 날짜 포맷팅 (YYYY-MM-DD)
@@ -132,6 +117,31 @@
 
             lastSpan.title = tooltipMsg; // 툴팁 적용
             lastSpan.style.cursor = 'help';
+
+            const diffDays = (now - lastDate) / (1000 * 60 * 60 * 24);
+            // 1. 색상 결정을 위한 기준점 계산 (상대적 비율)
+            const warningThreshold = expiryDays * 0.83; // 약 83% 지점 (180일 중 150일, 90일 중 75일)
+            const dangerThreshold = expiryDays * 0.5;   // 50% 지점 (180일 중 90일, 90일 중 45일)
+
+            let color = '';
+
+            if (diffDays > expiryDays) {
+                color = 'red'; // 만료됨 (무조건 레드)
+            } else if (diffDays > warningThreshold) {
+                color = 'orange'; // 만료 임박 (약 1~2개월 남음)
+            } else if (diffDays > dangerThreshold) {
+                color = 'yellow'; // 주의 (절반 지남)
+            } else if (diffDays > 30) {
+                color = 'darkgreen'; // 한 달 경과
+            } else if (diffDays > 7) {
+                color = 'green'; // 일주일 경과
+            } else {
+                color = 'lime'; // 최근 활동
+            }
+
+            // 2. 일괄 스타일 적용
+            lastSpan.style.color = color;
+            lastSpan.closest('td').style.color = color;
         });
     }
 
