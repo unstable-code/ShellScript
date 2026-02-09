@@ -42,8 +42,7 @@ if which juliaup &> /dev/null; then
 fi
 
 if which docker &> /dev/null; then
-    docker image prune -f
-    docker volume prune -f
+    docker system prune -f
 fi
 
 if which zsh &>/dev/null; then
