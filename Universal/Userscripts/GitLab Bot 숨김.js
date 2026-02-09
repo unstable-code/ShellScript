@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2026.02091
+// @version      2026.02092
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -96,6 +96,21 @@
             } else {
                 lastSpan.style.color = 'red';
                 lastSpan.closest('td').style.color = 'red';
+            }
+
+            const s = Math.floor((now - lastDate) / 1000);
+            if (s < 60) {
+                lastSpan.textContent = 'Just now';
+            } else if (s < 3600) {
+                lastSpan.textContent = `${Math.floor(s / 60)} minutes ago`
+            } else if (s < 86400) {
+                lastSpan.textContent = `${Math.floor(s / 3600)} hours ago`
+            } else if (s < 604800) {
+                lastSpan.textContent = `${Math.floor(s / 86400)} days ago`
+            } else if (s < 2592000) {
+                lastSpan.textContent = `${Math.floor(s / 604800)} weeks ago`
+            } else {
+                lastSpan.textContent = `${Math.floor(s / 2592000)} months ago`
             }
         });
     }
