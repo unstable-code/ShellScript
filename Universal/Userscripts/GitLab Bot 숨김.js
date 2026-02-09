@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2026.02093
+// @version      2026.02094
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -112,6 +112,26 @@
             } else {
                 lastSpan.textContent = `${Math.floor(s / 2592000)} months ago`
             }
+
+            // 1. 만료일 및 D-Day 계산
+            const expDate = new Date(lastDate.getTime() + (180 * 24 * 60 * 60 * 1000));
+            const dDay = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)); // 남은 일수
+
+            // 2. 날짜 포맷팅 (YYYY-MM-DD)
+            const formattedExpDate = expDate.toISOString().split('T')[0];
+
+            // 3. 툴팁 문구 및 스타일 결정
+            let tooltipMsg = `Expiration Date: ${formattedExpDate}`;
+            if (dDay > 0) {
+                tooltipMsg += ` (D-${dDay})`;
+            } else if (dDay === 0) {
+                tooltipMsg += ` (D-Day!)`;
+            } else {
+                tooltipMsg = `⚠️ Expired: ${formattedExpDate} (${Math.abs(dDay)} days ago)`;
+            }
+
+            lastSpan.title = tooltipMsg; // 툴팁 적용
+            lastSpan.style.cursor = 'help';
         });
     }
 
