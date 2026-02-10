@@ -1,0 +1,29 @@
+#!/bin/bash
+
+TARGET="/tmp"
+# 감시할 파일명 패턴들을 배열로 정의 (정규표현식 스타일)
+TARGET_PATTERNS=(
+    "^claude"
+    "^yazi"
+    "^node_compile_cache"
+)
+
+# 배열 요소들을 | (OR)로 묶어 하나의 정규표현식으로 합침
+# 예: (^claude|^yazi|^node_compile_cache)
+REGEX_PATTERN=$(IFS="|"; echo "(${TARGET_PATTERNS[*]})")
+
+inotifywait -m -q -e create --format '%f' "$TARGET" | while read -r FILENAME
+do
+    # 정규표현식 매칭 확인 (~= 연산자 사용)
+    if [[ "$FILENAME" =~ $REGEX_PATTERN ]]; then
+        CURRENT_PERM=$(stat -c "%a" "$TARGET/$FILENAME" 2>/dev/null)
+
+        if [ -n "$CURRENT_PERM" ] && [ "$CURRENT_PERM" != "700" ]; then
+            if chmod 700 "$TARGET/$FILENAME" 2>/dev/null; then
+                logger -t "shield-bot" -p user.info "Locked: $FILENAME (700)"
+            else
+                logger -t "shield-bot" -p user.err "Fail: $FILENAME"
+            fi
+        fi
+    fi
+done
