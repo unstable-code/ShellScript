@@ -1,6 +1,5 @@
 #!/bin/bash
 
-exitCode=0
 prevDir=$(pwd)
 
 if [[ "$(uname -s)" != "Linux" ]]; then
