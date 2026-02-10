@@ -3,17 +3,16 @@
 exitCode=0
 prevDir=$(pwd)
 
+if [[ "$(uname -s)" != "Linux" ]]; then
+    echo "Unknown OS: $(uname -s). Aborting."
+    exit 1
+fi
+
 function gitUpdate() {
     repoName=("Release/ShellScript" "Release/PasswordsGenerator" "Release/Dotfiles")
-    if [ "$(uname -s)" == "Darwin" ]; then
-        repoName+=("Release/aptall")
-    elif [ "$(uname -s)" == "Linux" ]; then
-        repoName+=("Release/brewall" "Release/ArtDisplay")
-
-        if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
-            repoName+=("Release/Games/World of Warcraft/macros")
-            repoName+=("Release/Games/World of Warcraft/WeakAuras")
-        fi
+    if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
+        repoName+=("Release/Games/World of Warcraft/macros")
+        repoName+=("Release/Games/World of Warcraft/WeakAuras")
     fi
 
     for target in "${repoName[@]}"; do
@@ -33,46 +32,10 @@ function gitUpdate() {
     done
 }
 
-if [ "$SKIP_PACKAGE_UPDATER" == "true" ]; then
-    gitUpdate
-    if [ "$(uname -s)" == "Darwin" ]; then
-        if [ -x ~/Documents/Release/ShellScript/Operating\ System/macOS/Private/extension ]; then
-            ~/Documents/Release/ShellScript/Operating\ System/macOS/Private/extension
-        fi
-    elif [ "$(uname -s)" == "Linux" ]; then
-        if [ -x ~/Documents/Release/ShellScript/Operating\ System/Linux/General/extension ]; then
-            ~/Documents/Release/ShellScript/Operating\ System/Linux/General/extension
-        elif [ -x ~/Documents/Release/ShellScript/Operating\ System/Linux/RaspberryPi/extension ]; then
-            ~/Documents/Release/ShellScript/Operating\ System/Linux/RaspberryPi/extension
-        fi
-    fi
-    exit $exitCode
-fi
-
-if [ "$(uname -s)" == "Darwin" ]; then
-    if [ -x ~/Documents/Release/brewall/brewall.sh ]; then
-        ~/Documents/Release/brewall/brewall.sh "$@"
-        if [ $# == 0 ]; then
-            gitUpdate
-        fi
-        exitCode=$?
-    else
-        gitUpdate
-    fi
-elif [ "$(uname -s)" == "Linux" ]; then
-    if [ -x ~/Documents/Release/aptall/aptall.sh ]; then
-        ~/Documents/Release/aptall/aptall.sh "$@"
-        aptall_exit=$?
-        if [ $aptall_exit -ne 127 ] && [ $# == 0 ]; then
-            gitUpdate
-        fi
-        exitCode=$aptall_exit
-    else
-        gitUpdate
-    fi
+gitUpdate
+if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
+    ~/Documents/Release/ShellScript/Specific/Windows/WSL/extension
 else
-    echo "Unknown OS: $(uname -s). Aborting."
-    exitCode=1
+    ~/Documents/Release/ShellScript/Specific/Linux/General/extension
 fi
 
-exit $exitCode
