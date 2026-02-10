@@ -43,6 +43,7 @@ else
     if [ "$target" == "git" ] && [ -x /usr/bin/git_win ]; then
         /usr/bin/git_win "${win_args[@]}"
     elif [ "$target" == "gpg" ] && [ -x /usr/bin/gpg_win ]; then
+        /usr/bin/gpg_win --version > /dev/null 2>&1
         /usr/bin/gpg_win "${win_args[@]}"
     fi
 fi
