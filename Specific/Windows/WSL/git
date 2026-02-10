@@ -43,6 +43,6 @@ else
     if [ "$target" == "git" ] && [ -x /usr/bin/git_win ]; then
         /usr/bin/git_win "${win_args[@]}"
     elif [ "$target" == "gpg" ] && [ -x /usr/bin/gpg_win ]; then
-        /mnt/c/Program\ Files/Git/git-bash.exe -c "gpg ${win_args[*]}"
+        /usr/bin/gpg_win "${win_args[@]}"
     fi
 fi
