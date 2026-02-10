@@ -27,8 +27,13 @@ if [ $is_win_path -eq 0 ]; then
 else
     # === Windows Interop ===
     win_args=()
+	is_first_arg=1  # 첫 번째 인자(명령어)인지 확인하는 플래그
+
     for arg in "$@"; do
-        if [[ "$arg" == /mnt/* ]] || [ -e "$arg" ]; then
+        if [ $is_first_arg -eq 1 ] || [[ "$arg" =~ ^- ]]; then
+            win_args+=("$arg")
+            is_first_arg=0 
+        elif [ -e "$arg" ]; then
             win_args+=("$(wslpath -w "$(readlink -f "$arg")" 2>/dev/null || echo "$arg")")
         else
             win_args+=("$arg")
