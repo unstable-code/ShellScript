@@ -1,0 +1,29 @@
+#!/bin/bash
+# /etc/profile.d/welcome-motd.sh
+
+echo "Welcome to $(cat /etc/os-release | grep 'PRETTY_NAME' | sed 's/PRETTY_NAME="//' | sed 's/"//') ($(uname -o) $(uname -r | sed "s/\.$(uname -m)//") $(uname -m))"
+echo ""
+echo " * Documentation: https://docs.rockylinux.org/"
+echo " * Management:    https://rockylinux.org/"
+echo " * Support:       https://forums.rockylinux.org/"
+echo ""
+echo " System information as of $(date)"
+echo ""
+
+load=$(awk '{print $1}' /proc/loadavg)
+procs=$(ps ax | wc -l)
+usage=$(df -h / | awk 'NR==2 {print $5}')
+users=$(who | wc -l)
+mem=$(free -m | awk 'NR==2 {printf "%.0f%%", $3*100/$2}')
+swap=$(free -m | awk '/^Swap:/ {if($2>0) printf "%.0f%%", $3*100/$2; else print "0%"}')
+ip_addr=$(hostname -I | awk '{print $1}')
+
+printf "  System load:  %-15s Processes:       %s\n" "$load" "$procs"
+printf "  Usage of /:   %-15s Users logged in: %s\n" "$usage" "$users"
+printf "  Memory usage: %-15s IPv4 address:    %s\n" "$mem" "$ip_addr"
+printf "  Swap usage:   %-15s\n" "$swap"
+echo ""
+
+[ -r /run/reboot-required ] && echo "*** System restart required ***"
+
+last -n 1 -R $USER | head -n 1 | awk -v d="$(date)" '{printf "Last login: %s from %s\n", d, $2}'
