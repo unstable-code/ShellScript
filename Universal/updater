@@ -10,8 +10,14 @@ fi
 function gitUpdate() {
     repoName=("Release/ShellScript" "Release/PasswordsGenerator" "Release/Dotfiles")
     if [ -r "/mnt/c/Windows/System32/cmd.exe" ]; then
+        repoName+=("Release/update-glab" "Release/update-gitlab-runner")
         repoName+=("Release/Games/World of Warcraft/macros")
         repoName+=("Release/Games/World of Warcraft/WeakAuras")
+        repoName+=("Unreal Projects/Alpha")
+    else
+        repoName+=("Release/lyrics" "Release/wshowkeys")
+        repoName+=("Release/pixelboost")
+        repoName+=("Release/upgrade-gitlab")
     fi
 
     for target in "${repoName[@]}"; do
