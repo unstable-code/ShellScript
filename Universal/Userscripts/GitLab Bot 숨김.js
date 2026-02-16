@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab 관리자 페이지 스타일 수정
 // @namespace    http://tampermonkey.net/
-// @version      2026.02095
+// @version      2026.02160
 // @description  GitLab 관리자 페이지 스타일 수정
 // @match        *://*gitlab*/admin/users*
 // @grant        none
@@ -25,7 +25,7 @@
             let isBot = false;
             badges.forEach(badge => {
                 // 텍스트에 'Bot'이 포함되어 있는지 확인 (대소문자 구분 없이 검색하면 더 안전함)
-                if (badge.textContent.includes('Bot')) {
+                if (badge.textContent.includes('Bot') || badge.textContent.includes('봇')) {
                     isBot = true;
                 }
             });
