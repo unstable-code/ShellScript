@@ -1,0 +1,76 @@
+#!/bin/bash
+
+GEMINI_DIR="$HOME/.gemini"
+TMP_DIR="${GEMINI_DIR}/tmp"
+
+# 색상 정의
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+if [ ! -d "$TMP_DIR" ]; then
+    echo -e "${RED}에러: $TMP_DIR 폴더를 찾을 수 없습니다.${NC}"
+    exit 1
+fi
+
+while true; do
+    echo -e "\n--- ${BLUE}Gemini CLI 세션 목록 (활동 순)${NC} ---"
+
+    # 1. 활동 시간순으로 해시 폴더 목록 생성
+    mapfile -t folders < <(ls -1t "$TMP_DIR" | grep -v "bin")
+
+    if [ ${#folders[@]} -eq 0 ]; then
+        echo -e "${YELLOW}관리할 세션이 없습니다.${NC}"
+        break
+    fi
+
+    display_options=()
+    for f in "${folders[@]}"; do
+        log_file="$TMP_DIR/$f/logs.json"
+        mtime=$(date -r "$TMP_DIR/$f" "+%Y-%m-%d %H:%M")
+
+        # 2. 요약 텍스트 추출 (앞서 검증된 로직)
+        if [ -f "$log_file" ]; then
+            context=$(grep -hPo '"message":\s*"\K[^"]+' "$log_file" | \
+                      grep -vE "^/home/|^/|^[0-9a-f]{10,}|^/exit" | \
+                      head -n 1)
+            [ -z "$context" ] && context="(대화 내용 없음)"
+        else
+            context="(로그 파일 없음)"
+        fi
+
+        # 요약문 개행 제거 및 길이 제한
+        clean_ctx=$(echo "$context" | tr -d '\n' | sed 's/\\n/ /g' | sed 's/^ *//')
+        display_options+=("[$mtime] ${clean_ctx:0:60}...")
+    done
+
+    # 3. 대화식 선택 메뉴
+    PS3=$'\n삭제할 번호 선택 (종료: q): '
+    select opt in "${display_options[@]}"; do
+        if [[ $REPLY == "q" ]]; then exit 0; fi
+        if [ -n "$opt" ]; then
+            idx=$((REPLY-1))
+            real_hash="${folders[$idx]}"
+
+            echo -e "\n${YELLOW}───────────────────────────────────────${NC}"
+            echo -e "🕒 활동 시간: ${GREEN}$(echo "$opt" | grep -oP '^\[.*?\]')${NC}"
+            echo -e "📁 해시 폴더: ${YELLOW}$real_hash${NC}"
+            echo -e "💬 요약 내용: ${opt#*] }"
+            echo -e "${YELLOW}───────────────────────────────────────${NC}"
+
+            echo -en "${RED}이 Gemini 세션을 삭제하시겠습니까? (y/N)${NC} > "
+            read -r confirm
+
+            if [[ $confirm == [yY] ]]; then
+                rm -rf "$TMP_DIR/$real_hash"
+                echo -e "${GREEN}✅ 삭제 완료!${NC}"
+            fi
+            break 
+        else
+            echo -e "${YELLOW}잘못된 번호입니다.${NC}"
+            break
+        fi
+    done
+done
