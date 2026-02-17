@@ -48,7 +48,7 @@ while true; do
     echo -e "\n--- ${BLUE}Claude Code 세션 목록 (활동 순)${NC} ---"
 
     mapfile -t real_folders < <(ls -1t "$PROJECTS_DIR" 2>/dev/null)
-    
+
     if [ ${#real_folders[@]} -eq 0 ]; then
         echo -e "${YELLOW}관리할 세션이 없습니다.${NC}"
         break
@@ -58,7 +58,7 @@ while true; do
     for f in "${real_folders[@]}"; do
         restored=$(smart_restore "$f")
         access_time=$(ls -ld --time-style="+%Y-%m-%d %H:%M" "$PROJECTS_DIR/$f" | awk '{print $6, $7}')
-        
+
         # [수정] 출력 형식 정렬 (MISSING 유무에 따른 공백 처리)
         if [ -d "$restored" ]; then
             # MISSING 자리에 10칸의 공백을 채워 정렬 유지
@@ -74,10 +74,10 @@ while true; do
         if [ -n "$opt" ]; then
             idx=$((REPLY-1))
             real_name="${real_folders[$idx]}"
-            
+
             # 태그와 날짜 제거 후 순수 경로만 추출
             clean_path=$(echo "$opt" | sed -E 's/^\[.*\] (\[MISSING\] )?//' | sed 's/^ *//')
-            
+
             echo -e "\n${YELLOW}───────────────────────────────────────${NC}"
             if [[ "$opt" == *"[MISSING]"* ]]; then
                 echo -e "📍 복원 경로: ${RED}$clean_path (디렉토리 없음)${NC}"
@@ -87,7 +87,7 @@ while true; do
             echo -e "🕒 마지막 활동: $(echo "$opt" | awk -F'[][]' '{print $2}')"
             echo -e "📁 실제 폴더명: ${YELLOW}$real_name${NC}"
             echo -e "${YELLOW}───────────────────────────────────────${NC}"
-            
+
             echo -en "${RED}삭제하시겠습니까? (y/N)${NC} > "
             read -r confirm
             if [[ $confirm == [yY] ]]; then
