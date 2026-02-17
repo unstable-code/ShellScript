@@ -1,0 +1,105 @@
+#!/bin/bash
+
+CLAUDE_DIR="$HOME/.claude"
+PROJECTS_DIR="${CLAUDE_DIR}/projects"
+
+# 색상 정의
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+if [ ! -d "$PROJECTS_DIR" ]; then
+    echo -e "${RED}에러: $PROJECTS_DIR 폴더를 찾을 수 없습니다.${NC}"
+    exit 1
+fi
+
+# 지능형 경로 복구 함수 (검증 로직 강화)
+smart_restore() {
+    local folder=$1
+    local raw=$(echo "$folder" | sed 's/--/\/\./g' | sed 's/^-//')
+    IFS='-' read -ra PARTS <<< "$raw"
+    local current="/"
+    local i=0
+    while [ $i -lt ${#PARTS[@]} ]; do
+        local found=false
+        for (( j=${#PARTS[@]}-1; j>=i; j-- )); do
+            local segment=""
+            for (( k=i; k<=j; k++ )); do
+                if [ -z "$segment" ]; then segment="${PARTS[$k]}"; else segment="${segment}-${PARTS[$k]}"; fi
+            done
+            if [ -d "$current/$segment" ]; then
+                current="${current%/}/$segment"; i=$((j + 1)); found=true; break
+            elif [ -d "$current/.$segment" ]; then
+                current="${current%/}/.$segment"; i=$((j + 1)); found=true; break
+            fi
+        done
+        if [ "$found" = false ]; then
+            local p="${PARTS[$i]}"
+            if [ "$current" == "/" ]; then current="/$p"; else current="${current}-$p"; fi
+            i=$((i + 1))
+        fi
+    done
+    echo "$current" | sed 's/\/\//\//g'
+}
+
+while true; do
+    echo -e "\n--- ${BLUE}Claude Code 세션 목록 (활동 순)${NC} ---"
+
+    mapfile -t real_folders < <(ls -1t "$PROJECTS_DIR" 2>/dev/null)
+    
+    if [ ${#real_folders[@]} -eq 0 ]; then
+        echo -e "${YELLOW}관리할 세션이 없습니다.${NC}"
+        break
+    fi
+
+    display_options=()
+    for f in "${real_folders[@]}"; do
+        restored=$(smart_restore "$f")
+        access_time=$(ls -ld --time-style="+%Y-%m-%d %H:%M" "$PROJECTS_DIR/$f" | awk '{print $6, $7}')
+        
+        # [수정] 출력 형식 정렬 (MISSING 유무에 따른 공백 처리)
+        if [ -d "$restored" ]; then
+            # MISSING 자리에 10칸의 공백을 채워 정렬 유지
+            display_options+=("[$access_time]           $restored")
+        else
+            display_options+=("[$access_time] [MISSING] $restored")
+        fi
+    done
+
+    PS3=$'\n번호 선택 (종료: q): '
+    select opt in "${display_options[@]}"; do
+        if [[ $REPLY == "q" ]]; then exit 0; fi
+        if [ -n "$opt" ]; then
+            idx=$((REPLY-1))
+            real_name="${real_folders[$idx]}"
+            
+            # 태그와 날짜 제거 후 순수 경로만 추출
+            clean_path=$(echo "$opt" | sed -E 's/^\[.*\] (\[MISSING\] )?//' | sed 's/^ *//')
+            
+            echo -e "\n${YELLOW}───────────────────────────────────────${NC}"
+            if [[ "$opt" == *"[MISSING]"* ]]; then
+                echo -e "📍 복원 경로: ${RED}$clean_path (디렉토리 없음)${NC}"
+            else
+                echo -e "📍 복원 경로: ${GREEN}$clean_path${NC}"
+            fi
+            echo -e "🕒 마지막 활동: $(echo "$opt" | awk -F'[][]' '{print $2}')"
+            echo -e "📁 실제 폴더명: ${YELLOW}$real_name${NC}"
+            echo -e "${YELLOW}───────────────────────────────────────${NC}"
+            
+            echo -en "${RED}삭제하시겠습니까? (y/N)${NC} > "
+            read -r confirm
+            if [[ $confirm == [yY] ]]; then
+                rm -rf "${PROJECTS_DIR}/${real_name}"
+                [ -f "${CLAUDE_DIR}/history.jsonl" ] && grep -v "$real_name" "${CLAUDE_DIR}/history.jsonl" > "${CLAUDE_DIR}/history.jsonl.tmp" && mv "${CLAUDE_DIR}/history.jsonl.tmp" "${CLAUDE_DIR}/history.jsonl"
+                find "${CLAUDE_DIR}/session-env" "${CLAUDE_DIR}/tasks" -name "*${real_name}*" -exec rm -rf {} + 2>/dev/null
+                echo -e "${GREEN}✅ 삭제 완료!${NC}"
+            fi
+            break 
+        else
+            echo -e "${YELLOW}잘못된 번호입니다.${NC}"
+            break
+        fi
+    done
+done
