@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab SAST Dashboard (Seamless Native Look)
 // @namespace    http://tampermonkey.net/
-// @version      2026.02240
+// @version      2026.02241
 // @match        *://gitlab.*/*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/GitLab%20SAST%20Dashboard.js
@@ -28,7 +28,7 @@
         const reportsContainer = document.querySelector('[data-testid="reports-widgets-container"]');
         const summaryWrapper = document.querySelector('[data-testid="widget-extension-top-level-summary"]');
         const actionContainer = document.querySelector('[data-testid="widget-extension-top-level"] .gl-flex');
-        
+
         // 상위 컨테이너 수직 정렬 강제
         const parentFlex = document.querySelector('[data-testid="widget-extension-top-level"]');
 
@@ -65,7 +65,7 @@
             // gl-h-6와 align-items-center로 정밀 정렬
             btnWrapper.className = 'gl-border-l gl-ml-3 gl-h-6 gl-border-l-section gl-pl-3 gl-flex gl-items-center';
             btnWrapper.style.alignSelf = 'center'; 
-            
+
             btnWrapper.innerHTML = `
                 <button class="btn btn-icon gl-button btn-default btn-sm btn-default-tertiary" type="button" style="height: 24px; width: 24px; padding: 0; display: flex; align-items: center; justify-content: center;">
                     <span class="gl-button-text" style="display: flex;">
@@ -100,7 +100,7 @@
             wrapper.style = `margin: 0; padding: 12px 0; background: var(--gl-background-color-section); border: 1px solid var(--gl-border-color); border-top: none; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;`;
             reportsContainer.after(wrapper);
         }
-        
+
         wrapper.style.display = 'block';
 
         let listBody = wrapper.querySelector('.sast-list-body');
@@ -121,23 +121,40 @@
             listBody.dataset.filterKey = filterKey;
             listBody.innerHTML = ''; 
             const filtered = cachedData.vulnerabilities.filter(v => currentFilter === 'ALL' || v.severity === currentFilter);
+
             filtered.forEach(v => {
                 const item = document.createElement('details');
                 item.className = 'custom-sast-item';
-                const accentColor = v.severity === 'High' ? 'var(--gl-text-color-danger)' : 'var(--gl-text-color-warning)';
-                item.style = `border: 1px solid var(--gl-border-color-subtle); border-left: 4px solid ${accentColor}; background-color: var(--gl-background-color-default); margin: 0 16px 4px 16px; border-radius: 4px;`;
+                const isHigh = v.severity === 'High';
+                const accentColor = isHigh ? 'var(--gl-text-color-danger)' : 'var(--gl-text-color-warning)';
+                const badgeBg = isHigh ? 'rgba(221, 43, 16, 0.1)' : 'rgba(191, 103, 0, 0.1)';
+
+                item.style = `border: 1px solid var(--gl-border-color-subtle); border-left: 4px solid ${accentColor}; background-color: var(--gl-background-color-default); margin: 0 16px 4px 16px; border-radius: 4px; overflow: hidden;`;
+
                 item.innerHTML = `
-                    <summary style="padding: 6px 12px; cursor: pointer; outline: none; display: flex; align-items: center; list-style: none;">
-                        <span class="chevron" style="display:inline-block; width:12px; font-size:10px; transition: transform 0.2s; color:var(--gl-text-color-subtle);">▶</span>
-                        <span style="font-weight: 800; color: ${accentColor}; font-size: 10px; margin-right: 10px; width: 45px;">${v.severity.toUpperCase()}</span>
-                        <span style="font-size: 13px; color: var(--gl-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${v.name}</span>
-                    </summary>
-                    <div style="padding: 10px 12px 12px 34px; border-top: 1px solid var(--gl-border-color-subtle); background: var(--gl-background-color-section);">
-                        <div style="font-size: 12px; color: var(--gl-text-color-subtle); line-height: 1.6;">${parseMarkdown(v.description)}</div>
-                        <div style="margin-top: 8px; font-size: 11px; color: var(--gl-text-color-secondary); font-family: monospace; border-top: 1px solid var(--gl-border-color-subtle); padding-top: 6px;">
-                            <strong>Location:</strong> ${v.location.file}:${v.location.start_line}
+                    <summary style="padding: 8px 12px; cursor: pointer; outline: none; display: flex; align-items: center; list-style: none; gap: 10px;">
+                        <span class="chevron" style="font-size: 10px; color: var(--gl-text-color-subtle); transition: transform 0.2s;">▶</span>
+
+                        <span style="background-color: ${badgeBg}; color: ${accentColor}; font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 10px; text-transform: uppercase; border: 1px solid ${accentColor}44; min-width: 52px; text-align: center;">
+                            ${v.severity}
+                        </span>
+
+                        <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; gap: 2px;">
+                            <div style="font-size: 13px; font-weight: 600; color: var(--gl-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                ${v.name}
+                            </div>
+                            <div style="font-size: 11px; color: var(--gl-text-color-subtle); font-family: monospace; opacity: 0.8;">
+                                ${v.location.file}:${v.location.start_line}
+                            </div>
                         </div>
-                    </div>`;
+                    </summary>
+                    <div style="padding: 12px 12px 12px 40px; border-top: 1px solid var(--gl-border-color-subtle); background: var(--gl-background-color-section);">
+                        <div style="font-size: 12px; color: var(--gl-text-color-subtle); line-height: 1.6;">
+                            ${parseMarkdown(v.description)}
+                        </div>
+                    </div>
+                `;
+                // ---------------------------------------
                 listBody.appendChild(item);
             });
         }
@@ -179,3 +196,4 @@
 
     setInterval(fetchSastData, 2000);
 })();
+
