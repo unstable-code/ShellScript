@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab SAST Dashboard (Seamless Native Look)
 // @namespace    http://tampermonkey.net/
-// @version      2026.02241
+// @version      2026.02242
 // @match        *://gitlab.*/*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/GitLab%20SAST%20Dashboard.js
@@ -15,7 +15,17 @@
     let currentFilter = 'ALL';
     let isVisible = false;
 
+    // Severity별 색상 정의
+    const SEVERITY_CONFIG = {
+        'Critical': { color: '#ae1800', bg: 'rgba(174, 24, 0, 0.1)' },
+        'High': { color: 'var(--gl-text-color-danger)', bg: 'rgba(221, 43, 16, 0.1)' },
+        'Medium': { color: 'var(--gl-text-color-warning)', bg: 'rgba(191, 103, 0, 0.1)' },
+        'Low': { color: 'var(--gl-text-color-info)', bg: 'rgba(16, 126, 221, 0.1)' },
+        'ALL': { color: 'var(--gl-text-color-subtle)', bg: 'transparent' }
+    };
+
     function parseMarkdown(text) {
+        if (!text) return "";
         return text
             .replace(/```([\s\S]*?)```/g, '<pre style="background:var(--gl-background-color-subtle); color:var(--gl-text-color-subtle); padding:10px; border-radius:4px; margin:8px 0; font-family:monospace; font-size:12px; border: 1px solid var(--gl-border-color-subtle); overflow-x: auto;"><code>$1</code></pre>')
             .replace(/`([^`]+)`/g, '<code style="background:var(--gl-background-color-alpha-dark); color:var(--gl-text-color-danger); padding:1px 4px; border-radius:3px; font-family:monospace; font-size:12px;">$1</code>')
@@ -28,43 +38,41 @@
         const reportsContainer = document.querySelector('[data-testid="reports-widgets-container"]');
         const summaryWrapper = document.querySelector('[data-testid="widget-extension-top-level-summary"]');
         const actionContainer = document.querySelector('[data-testid="widget-extension-top-level"] .gl-flex');
-
-        // 상위 컨테이너 수직 정렬 강제
         const parentFlex = document.querySelector('[data-testid="widget-extension-top-level"]');
 
         if (!reportsContainer || !summaryWrapper || !actionContainer || !parentFlex) return;
 
-        parentFlex.style.alignItems = 'center'; // 전체 수직 중앙 정렬
+        parentFlex.style.alignItems = 'center';
 
         const stats = {
             all: cachedData.vulnerabilities.length,
+            critical: cachedData.vulnerabilities.filter(v => v.severity === 'Critical').length,
             high: cachedData.vulnerabilities.filter(v => v.severity === 'High').length,
             medium: cachedData.vulnerabilities.filter(v => v.severity === 'Medium').length
         };
 
-        // 1. 텍스트 얼라인 보정
         if (!summaryWrapper.querySelector('.sast-summary-text')) {
             summaryWrapper.innerHTML = `
                 <div class="gl-flex gl-flex-col sast-summary-text" style="justify-content: center; height: 32px;">
                     <div style="font-weight: 600; color: var(--gl-text-color); line-height: 1.1; font-size: 14px;">Security Analysis Report</div>
                     <div style="font-size: 12px; margin-top: 2px; line-height: 1.1; color: var(--gl-text-color-subtle);">
-                        Found <span class="sast-high-count" style="color: var(--gl-text-color-danger); font-weight: bold;">${stats.high} high</span>, 
-                        <span class="sast-medium-count" style="color: var(--gl-text-color-warning); font-weight: bold;">${stats.medium} medium</span> vulnerabilities
+                        Found <span class="sast-crit-count" style="color: ${SEVERITY_CONFIG.Critical.color}; font-weight: bold;">${stats.critical} crit</span>,
+                        <span class="sast-high-count" style="color: ${SEVERITY_CONFIG.High.color}; font-weight: bold;">${stats.high} high</span>,
+                        <span class="sast-medium-count" style="color: ${SEVERITY_CONFIG.Medium.color}; font-weight: bold;">${stats.medium} med</span>
                     </div>
                 </div>
             `;
         } else {
+            summaryWrapper.querySelector('.sast-crit-count').innerText = `${stats.critical} crit`;
             summaryWrapper.querySelector('.sast-high-count').innerText = `${stats.high} high`;
-            summaryWrapper.querySelector('.sast-medium-count').innerText = `${stats.medium} medium`;
+            summaryWrapper.querySelector('.sast-medium-count').innerText = `${stats.medium} med`;
         }
 
-        // 2. 우측 버튼 얼라인 보정
         if (!document.getElementById('sast-toggle-wrapper')) {
             const btnWrapper = document.createElement('div');
             btnWrapper.id = 'sast-toggle-wrapper';
-            // gl-h-6와 align-items-center로 정밀 정렬
             btnWrapper.className = 'gl-border-l gl-ml-3 gl-h-6 gl-border-l-section gl-pl-3 gl-flex gl-items-center';
-            btnWrapper.style.alignSelf = 'center'; 
+            btnWrapper.style.alignSelf = 'center';
 
             btnWrapper.innerHTML = `
                 <button class="btn btn-icon gl-button btn-default btn-sm btn-default-tertiary" type="button" style="height: 24px; width: 24px; padding: 0; display: flex; align-items: center; justify-content: center;">
@@ -75,10 +83,9 @@
                     </span>
                 </button>
             `;
-            btnWrapper.onclick = (e) => {
+            btnWrapper.onclick = () => {
                 isVisible = !isVisible;
-                const svg = btnWrapper.querySelector('.sast-chevron');
-                svg.style.transform = isVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+                btnWrapper.querySelector('.sast-chevron').style.transform = isVisible ? 'rotate(180deg)' : 'rotate(0deg)';
                 renderList(reportsContainer, stats);
             };
             actionContainer.appendChild(btnWrapper);
@@ -119,26 +126,21 @@
         const filterKey = `${currentFilter}-${stats.all}`;
         if (listBody.dataset.filterKey !== filterKey) {
             listBody.dataset.filterKey = filterKey;
-            listBody.innerHTML = ''; 
+            listBody.innerHTML = '';
             const filtered = cachedData.vulnerabilities.filter(v => currentFilter === 'ALL' || v.severity === currentFilter);
 
             filtered.forEach(v => {
                 const item = document.createElement('details');
                 item.className = 'custom-sast-item';
-                const isHigh = v.severity === 'High';
-                const accentColor = isHigh ? 'var(--gl-text-color-danger)' : 'var(--gl-text-color-warning)';
-                const badgeBg = isHigh ? 'rgba(221, 43, 16, 0.1)' : 'rgba(191, 103, 0, 0.1)';
+                const config = SEVERITY_CONFIG[v.severity] || SEVERITY_CONFIG['Medium'];
 
-                item.style = `border: 1px solid var(--gl-border-color-subtle); border-left: 4px solid ${accentColor}; background-color: var(--gl-background-color-default); margin: 0 16px 4px 16px; border-radius: 4px; overflow: hidden;`;
-
+                item.style = `border: 1px solid var(--gl-border-color-subtle); border-left: 4px solid ${config.color}; background-color: var(--gl-background-color-default); margin: 0 16px 4px 16px; border-radius: 4px; overflow: hidden;`;
                 item.innerHTML = `
                     <summary style="padding: 8px 12px; cursor: pointer; outline: none; display: flex; align-items: center; list-style: none; gap: 10px;">
                         <span class="chevron" style="font-size: 10px; color: var(--gl-text-color-subtle); transition: transform 0.2s;">▶</span>
-
-                        <span style="background-color: ${badgeBg}; color: ${accentColor}; font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 10px; text-transform: uppercase; border: 1px solid ${accentColor}44; min-width: 52px; text-align: center;">
+                        <span style="background-color: ${config.bg}; color: ${config.color}; font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 10px; text-transform: uppercase; border: 1px solid ${config.color}44; min-width: 65px; text-align: center;">
                             ${v.severity}
                         </span>
-
                         <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; gap: 2px;">
                             <div style="font-size: 13px; font-weight: 600; color: var(--gl-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 ${v.name}
@@ -154,7 +156,6 @@
                         </div>
                     </div>
                 `;
-                // ---------------------------------------
                 listBody.appendChild(item);
             });
         }
@@ -162,17 +163,22 @@
 
     function updateFilters(container, stats) {
         container.innerHTML = '';
-        ['ALL', 'High', 'Medium'].forEach(type => {
-            const count = type === 'ALL' ? stats.all : stats[type.toLowerCase()];
+        ['ALL', 'Critical', 'High', 'Medium'].forEach(type => {
+            const count = type === 'ALL' ? stats.all : stats[type.toLowerCase()] || 0;
             const btn = document.createElement('button');
+            const config = SEVERITY_CONFIG[type];
+
             btn.innerHTML = `${type} <span style="opacity:0.8;">${count}</span>`;
-            const activeColor = type === 'High' ? 'var(--gl-text-color-danger)' : (type === 'Medium' ? 'var(--gl-text-color-warning)' : 'var(--gl-text-color-subtle)');
-            btn.style = `padding: 2px 10px; border-radius: 4px; border: 1px solid var(--gl-border-color); font-size: 11px; font-weight: 600; cursor: pointer; background: ${currentFilter === type ? activeColor : 'var(--gl-background-color-default)'}; color: ${currentFilter === type ? 'white' : activeColor};`;
-            btn.onclick = (e) => { 
-                currentFilter = type; 
-                const reportsContainer = document.querySelector('[data-testid="reports-widgets-container"]');
+            const isActive = currentFilter === type;
+
+            btn.style = `padding: 2px 10px; border-radius: 4px; border: 1px solid var(--gl-border-color); font-size: 11px; font-weight: 600; cursor: pointer; 
+                         background: ${isActive ? config.color : 'var(--gl-background-color-default)'}; 
+                         color: ${isActive ? 'white' : config.color};`;
+
+            btn.onclick = () => {
+                currentFilter = type;
                 updateFilters(container, stats);
-                renderList(reportsContainer, stats);
+                renderList(document.querySelector('[data-testid="reports-widgets-container"]'), stats);
             };
             container.appendChild(btn);
         });
