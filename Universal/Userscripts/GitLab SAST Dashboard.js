@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GitLab SAST Dashboard (Seamless Native Look)
 // @namespace    http://tampermonkey.net/
-// @version      2026.02242
-// @match        *://gitlab.*/*
+// @version      2026.02243
+// @match        *://gitlab.*/*/merge_requests/*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/GitLab%20SAST%20Dashboard.js
 // @downloadURL  https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/GitLab%20SAST%20Dashboard.js
