@@ -20,7 +20,7 @@ fi
 #####################################
 # 최신 DSM 버전 가져오기
 #####################################
-LATEST_PATH=$(curl -s "$BASE_URL" \
+LATEST_PATH=$(curl -sf "$BASE_URL" \
     | grep -oP '/download/Os/DSM/\d+\.\d+\.\d+-\d+' \
     | head -n1)
 
@@ -45,7 +45,7 @@ fi
 #####################################
 # 모델 지원 여부 확인
 #####################################
-HTML=$(curl -s "$VERSION_PAGE")
+HTML=$(curl -sf "$VERSION_PAGE")
 
 FILE_PATTERN="DSM_${NAS_MODEL//+/%2B}_${BUILD}.pat"
 DOWNLOAD_URL=$(echo "$HTML" | grep -oP "https://[^']*${FILE_PATTERN}" | head -n1)

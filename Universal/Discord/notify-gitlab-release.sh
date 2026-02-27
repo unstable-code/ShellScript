@@ -16,16 +16,31 @@ CACHE_FILE="$HOME/.$(echo "$DISCORD_URL" | sed 's|https://discord.com/api/webhoo
 [ ! -f "$CACHE_FILE" ] && touch "$CACHE_FILE"
 
 # 피드 가져오기
-FEED_CONTENT=$(curl -s "$REPO_FEED")
+FEED_CONTENT=$(curl -sf "$REPO_FEED")
+
+if [ -z "$FEED_CONTENT" ]; then
+    echo "Failed to fetch feed from $REPO_FEED" >&2
+    exit 1
+fi
 
 # 최신 entry 추출 (첫 번째 entry만)
 LATEST_ENTRY=$(echo "$FEED_CONTENT" | awk '/<entry>/,/<\/entry>/' | head -50)
+
+if [ -z "$LATEST_ENTRY" ]; then
+    echo "No entries found in feed." >&2
+    exit 1
+fi
 
 # 피드 ID에서 슬러그만 추출 (URL 마지막 부분)
 FEED_ID=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<id>)[^<]+' | head -1 | sed 's|.*/\([^/]*\)/$|\1|')
 TITLE=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<title>)[^<]+' | head -1)
 LINK=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<link href=.)[^'"'"'"]+' | head -1)
 PUBLISHED=$(echo "$LATEST_ENTRY" | grep -oP '(?<=<published>)[^<]+' | head -1)
+
+if [ -z "$FEED_ID" ] || [ -z "$TITLE" ]; then
+    echo "Failed to parse feed entry (ID=$FEED_ID, Title=$TITLE)" >&2
+    exit 1
+fi
 
 echo "=== (DEBUG) Latest Release ==="
 echo "ID: $FEED_ID"
@@ -94,6 +109,11 @@ fi
 
 # 버전 추출 (제목에서 모든 버전)
 VERSIONS=$(echo "$TITLE" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')
+
+if [ -z "$VERSIONS" ]; then
+    echo "No version found in title: $TITLE" >&2
+    exit 1
+fi
 
 echo "Type: $RELEASE_TYPE"
 echo "Versions: $(echo "$VERSIONS" | tr '\n' ' ')"

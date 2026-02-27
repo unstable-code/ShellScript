@@ -16,7 +16,7 @@ fi
 [ ! -f "$CACHE_FILE" ] && touch "$CACHE_FILE"
 
 # RSS에서 item 추출 (title, link, pubDate, guid)
-curl -s "$REPO_TAG_FEED" \
+curl -sf "$REPO_TAG_FEED" \
     | awk '
       /<item>/ {item=1; title=""; link=""; pubDate=""; guid=""}
       /<\/item>/ {item=0; print title "|" link "|" pubDate "|" guid}
@@ -25,6 +25,9 @@ curl -s "$REPO_TAG_FEED" \
       item && /<pubDate>/ {match($0, /<pubDate>(.*)<\/pubDate>/, a); pubDate=a[1]}
       item && /<guid/ {match($0, /<guid.*>(.*)<\/guid>/, a); guid=a[1]}
     ' | while IFS="|" read -r title link pubDate guid; do
+
+    # 필수 필드 누락 시 스킵
+    [ -z "$title" ] || [ -z "$guid" ] && continue
 
     # 이미 캐시에 있으면 스킵
     if ! grep -qx "$guid" "$CACHE_FILE"; then
