@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitLab SAST Dashboard (Seamless Native Look)
 // @namespace    http://tampermonkey.net/
-// @version      2026.02243
+// @version      2026.02280
 // @match        *://gitlab.*/*/merge_requests/*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/unstable-code/ShellScript/refs/heads/master/Universal/Userscripts/GitLab%20SAST%20Dashboard.js
@@ -200,6 +200,31 @@
     style.innerHTML = `.custom-sast-item summary::-webkit-details-marker { display:none; } .custom-sast-item[open] .chevron { transform: rotate(90deg); }`;
     document.head.appendChild(style);
 
-    setInterval(fetchSastData, 2000);
+    function initSastDashboard() {
+        const reportsContainer = document.querySelector('[data-testid="reports-widgets-container"]');
+        const sastLink = document.querySelector('a[href*="file_type=sast"]');
+
+        if (reportsContainer && sastLink && !cachedData) {
+            fetch(sastLink.href)
+                .then(res => res.json())
+                .then(data => {
+                    cachedData = data;
+                    renderUI();
+                    observer.disconnect();
+                })
+                .catch(err => console.error("SAST Data fetch failed:", err));
+        }
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        initSastDashboard();
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    initSastDashboard();
 })();
 
